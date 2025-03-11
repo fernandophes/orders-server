@@ -4,26 +4,18 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Stream;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import br.edu.ufersa.cc.sd.exceptions.NotFoundException;
 import br.edu.ufersa.cc.sd.exceptions.OperationException;
 import br.edu.ufersa.cc.sd.models.Order;
-import br.edu.ufersa.cc.sd.services.OrderService;
 import lombok.AllArgsConstructor;
 
 @AllArgsConstructor
 public class OrderRepository {
-
-    private static final Logger LOG = LoggerFactory.getLogger(OrderRepository.class.getSimpleName());
 
     private static final String URL = "jdbc:h2:mem:db1;DB_CLOSE_DELAY=-1";
     private static final String USER = "sa";
@@ -50,28 +42,6 @@ public class OrderRepository {
         if (connection != null) {
             connection.close();
             connection = null;
-        }
-    }
-
-    public static void initialize() throws SQLException {
-        try (final var statement = getConnection().createStatement()) {
-            statement.executeUpdate(
-                    "create table orders (code BIGINT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(255), description VARCHAR(255), created_at TIMESTAMP, done_at TIMESTAMP)");
-            LOG.info("Tabela criada");
-
-            final var service = new OrderService();
-            Stream.iterate(1, i -> i + 1)
-                    .limit(100)
-                    .forEach(i -> {
-                        final var order = new Order()
-                                .setName(i + "ª ordem")
-                                .setDescription("Descrição da ordem nº " + i)
-                                .setCreatedAt(LocalDateTime.now());
-
-                        service.create(order);
-                    });
-        } catch (SQLException e) {
-            throw new SQLException("Erro ao inicializar banco de dados", e);
         }
     }
 

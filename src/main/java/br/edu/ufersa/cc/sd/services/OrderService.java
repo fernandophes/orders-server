@@ -1,6 +1,9 @@
 package br.edu.ufersa.cc.sd.services;
 
+import java.sql.SQLException;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +19,28 @@ public class OrderService {
     private static final Logger LOG = LoggerFactory.getLogger(OrderService.class.getSimpleName());
 
     private final OrderRepository orderRepository = new OrderRepository();
+
+    public static void initialize() throws SQLException {
+        try (final var statement = OrderRepository.getConnection().createStatement()) {
+            statement.executeUpdate(
+                    "create table orders (code BIGINT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(255), description VARCHAR(255), created_at TIMESTAMP, done_at TIMESTAMP)");
+            LOG.info("Tabela criada");
+
+            final var service = new OrderService();
+            Stream.iterate(1, i -> i + 1)
+                    .limit(100)
+                    .forEach(i -> {
+                        final var order = new Order()
+                                .setName(i + "ª ordem")
+                                .setDescription("Descrição da ordem nº " + i)
+                                .setCreatedAt(LocalDateTime.now());
+
+                        service.create(order);
+                    });
+        } catch (SQLException e) {
+            throw new SQLException("Erro ao inicializar banco de dados", e);
+        }
+    }
 
     public Long countAll() {
         return orderRepository.countAll();
