@@ -61,7 +61,7 @@ public class ProxyService implements Runnable {
                 new Thread(() -> handleClient(client)).start();
             }
         } catch (final SocketException e) {
-            LOG.info("Servidor encerrado.");
+            LOG.info("Servidor encerrado");
         } catch (final IOException e) {
             e.printStackTrace();
         }
@@ -93,9 +93,6 @@ public class ProxyService implements Runnable {
                     response = deleteIncludingCache(request);
                     break;
 
-                case LIST:
-                case CREATE:
-                case COUNT:
                 default:
                     response = redirectRequestToServer(request);
                     break;

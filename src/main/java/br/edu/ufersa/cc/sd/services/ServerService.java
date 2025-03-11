@@ -60,15 +60,23 @@ public class ServerService implements Runnable {
                 new Thread(() -> handleClient(client)).start();
             }
         } catch (final SocketException e) {
-            LOG.info("Servidor encerrado.");
+            LOG.info("Servidor encerrado");
         } catch (final IOException e) {
-            e.printStackTrace();
+            LOG.error("Erro ao aceitar novos clientes", e);
         }
     }
 
     private void handleClient(final Socket client) {
         LOG.info("Cliente conectado: {}", client.getInetAddress());
+
         try {
+            // O servidor não pode receber chamadas externas
+            if (client.getInetAddress().getHostAddress().equals("127.0.0.1")) {
+                LOG.error("Cliente externo bloqueado: {}", client.getInetAddress());
+                client.close();
+                return;
+            }
+
             final var output = new ObjectOutputStream(client.getOutputStream());
             final var input = new ObjectInputStream(client.getInputStream());
 
@@ -117,7 +125,7 @@ public class ServerService implements Runnable {
             client.close();
             LOG.info("Cliente encerrado: {}", client.getInetAddress());
         } catch (final IOException | ClassNotFoundException e) {
-            e.printStackTrace();
+            LOG.error("Erro ao aceitar novoc clientes", e);
         }
     }
 

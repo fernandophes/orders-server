@@ -136,7 +136,7 @@ public class OrderRepository {
                     ZonedDateTime.of(order.getCreatedAt(), ZoneId.systemDefault()).toInstant().toEpochMilli()));
 
             if (statement.executeUpdate() == 0) {
-                throw new SQLException("Não foi possível cadastrar essa ordem.");
+                throw new SQLException("Não foi possível cadastrar essa ordem");
             }
         } catch (final SQLException e) {
             throw new OperationException("Erro ao salvar ordem", e);
@@ -160,7 +160,7 @@ public class OrderRepository {
             statement.setLong(4, order.getCode());
 
             if (statement.executeUpdate() == 0) {
-                throw new SQLException("Não foi possível atualizar essa ordem.");
+                throw new SQLException("Não foi possível atualizar essa ordem");
             }
         } catch (final SQLException e) {
             throw new OperationException("Erro ao atualizar ordem", e);
@@ -174,7 +174,7 @@ public class OrderRepository {
             statement.setLong(1, order.getCode());
 
             if (statement.executeUpdate() == 0) {
-                throw new SQLException("Não foi possível excluir essa ordem.");
+                throw new SQLException("Não foi possível excluir essa ordem");
             }
         } catch (final SQLException e) {
             throw new OperationException("Erro ao excluir ordem", e);
