@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -31,6 +32,9 @@ public class LocalizationService implements Runnable {
             serverSocket = new ServerSocket(Constants.LOCALIZATION_PORT);
             LOG.info("Servidor de localização iniciado");
             LOG.info("{}", serverSocket);
+
+            final var localAddress = InetAddress.getLocalHost();
+            LOG.info("Disponível pelo endereço {}:{}", localAddress.getHostAddress(), Constants.LOCALIZATION_PORT);
             new Thread(() -> waitForClients(serverSocket)).start();
         } catch (final IOException e) {
             e.printStackTrace();
@@ -77,13 +81,14 @@ public class LocalizationService implements Runnable {
             LOG.info("Executando operação {}...", request.getOperation());
 
             final var address = new InetSocketAddress("localhost", Constants.PROXY_PORT);
-            
+
             final Response<InetSocketAddress> response;
             if (request.getOperation() == Operation.LOCALIZE) {
                 response = new Response<>(address);
             } else {
                 response = new Response<>(ResponseStatus.ERROR,
-                        "O servidor de localização suporta apenas a operação " + Operation.LOCALIZE.toString(), address);
+                        "O servidor de localização suporta apenas a operação " + Operation.LOCALIZE.toString(),
+                        address);
             }
 
             output.writeObject(response);
