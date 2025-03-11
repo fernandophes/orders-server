@@ -70,15 +70,16 @@ public class ServerService implements Runnable {
         LOG.info("Cliente conectado: {}", client.getInetAddress());
 
         try {
+            final var output = new ObjectOutputStream(client.getOutputStream());
+            final var input = new ObjectInputStream(client.getInputStream());
+
             // O servidor não pode receber chamadas externas
-            if (client.getInetAddress().getHostAddress().equals("127.0.0.1")) {
+            if (client.getInetAddress().getHostAddress().equals("/127.0.0.1")) {
                 LOG.error("Cliente externo bloqueado: {}", client.getInetAddress());
+                output.writeObject(new Response<>(ResponseStatus.ERROR, "Acesso não autorizado"));
                 client.close();
                 return;
             }
-
-            final var output = new ObjectOutputStream(client.getOutputStream());
-            final var input = new ObjectInputStream(client.getInputStream());
 
             LOG.info("Aguardando mensagens...");
 
@@ -89,6 +90,10 @@ public class ServerService implements Runnable {
 
             final Response<? extends Serializable> response;
             switch (request.getOperation()) {
+                case LOCALIZE:
+                    response = new Response<>(ResponseStatus.ERROR, "O servidor de Dados não faz Localização");
+                    break;
+
                 case LIST:
                     final var list = orderService.listAll();
                     response = new Response<>(new ArrayList<>(list));
@@ -115,9 +120,11 @@ public class ServerService implements Runnable {
                     break;
 
                 case COUNT:
-                default:
                     response = new Response<>(orderService.countAll());
                     break;
+
+                default:
+                    response = new Response<>(ResponseStatus.ERROR, "Operação não reconhecida");
             }
 
             output.writeObject(response);
@@ -133,7 +140,7 @@ public class ServerService implements Runnable {
         try {
             return new Response<>(orderService.findByCode(code));
         } catch (NotFoundException e) {
-            return new Response<>(ResponseStatus.ERROR);
+            return new Response<>(ResponseStatus.ERROR, "Ordem não encontrada");
         }
     }
 

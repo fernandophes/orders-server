@@ -3,6 +3,7 @@ package br.edu.ufersa.cc.sd.services;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -15,7 +16,6 @@ import br.edu.ufersa.cc.sd.dto.Request;
 import br.edu.ufersa.cc.sd.dto.Response;
 import br.edu.ufersa.cc.sd.enums.Operation;
 import br.edu.ufersa.cc.sd.enums.ResponseStatus;
-import br.edu.ufersa.cc.sd.models.Order;
 import br.edu.ufersa.cc.sd.utils.Constants;
 
 public class LocalizationService implements Runnable {
@@ -73,7 +73,7 @@ public class LocalizationService implements Runnable {
             LOG.info("Aguardando mensagens...");
 
             @SuppressWarnings("unchecked")
-            final var request = (Request<Order>) input.readObject();
+            final var request = (Request<Serializable>) input.readObject();
             LOG.info("Executando operação {}...", request.getOperation());
 
             final var address = new InetSocketAddress("localhost", Constants.PROXY_PORT);

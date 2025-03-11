@@ -81,6 +81,10 @@ public class ProxyService implements Runnable {
 
             final Response<? extends Serializable> response;
             switch (request.getOperation()) {
+                case LOCALIZE:
+                    response = new Response<>(ResponseStatus.ERROR, "O servidor de Proxy não faz Localização");
+                    break;
+
                 case FIND:
                     response = getFromCache(request);
                     break;
