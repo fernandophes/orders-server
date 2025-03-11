@@ -16,7 +16,6 @@ import br.edu.ufersa.cc.sd.dto.Request;
 import br.edu.ufersa.cc.sd.dto.Response;
 import br.edu.ufersa.cc.sd.enums.ResponseStatus;
 import br.edu.ufersa.cc.sd.models.Order;
-import br.edu.ufersa.cc.sd.utils.JsonUtils;
 
 public class SocketService implements Runnable {
 
@@ -28,11 +27,11 @@ public class SocketService implements Runnable {
 
     @Override
     public void run() {
-        LOG.info("Servidor iniciado");
-
         try {
             serverSocket = new ServerSocket(8484);
-            new Thread(() -> waitForClients(serverSocket)).start();
+            LOG.info("Servidor iniciado");
+            LOG.info("{}", serverSocket);
+            waitForClients(serverSocket);
         } catch (final IOException e) {
             e.printStackTrace();
         }
@@ -87,7 +86,6 @@ public class SocketService implements Runnable {
 
                 case CREATE:
                     order.setCode(null);
-                    LOG.info(JsonUtils.toJson(order));
                     orderService.create(order);
                     response = new Response<>(ResponseStatus.OK);
                     break;
