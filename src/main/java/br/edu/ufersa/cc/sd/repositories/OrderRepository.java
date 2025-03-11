@@ -14,6 +14,7 @@ import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import br.edu.ufersa.cc.sd.exceptions.NotFoundException;
 import br.edu.ufersa.cc.sd.exceptions.OperationException;
 import br.edu.ufersa.cc.sd.models.Order;
 import br.edu.ufersa.cc.sd.services.OrderService;
@@ -77,7 +78,8 @@ public class OrderRepository {
     public List<Order> listAll() {
         try (final var statement = getConnection().createStatement()) {
             final var resultSet = statement
-                    .executeQuery("select code, name, description, created_at, done_at from orders order by created_at desc, code desc");
+                    .executeQuery(
+                            "select code, name, description, created_at, done_at from orders order by created_at desc, code desc");
 
             final var result = new ArrayList<Order>();
             while (resultSet.next()) {
@@ -97,6 +99,30 @@ public class OrderRepository {
             return result;
         } catch (final SQLException e) {
             throw new OperationException("Erro ao listar ordens", e);
+        }
+    }
+
+    public Order findByCode(final Long code) throws NotFoundException {
+        final var sql = "select code, name, description, created_at, done_at from orders where code = ?";
+        try (final var statement = getConnection().prepareStatement(sql)) {
+            statement.setLong(1, code);
+            final var resultSet = statement.executeQuery();
+
+            if (resultSet.first()) {
+                final var createdAt = resultSet.getTimestamp("created_at");
+                final var doneAt = resultSet.getTimestamp("done_at");
+
+                return new Order()
+                        .setCode(resultSet.getLong("code"))
+                        .setCreatedAt(createdAt != null ? createdAt.toLocalDateTime() : null)
+                        .setDescription(resultSet.getString("description"))
+                        .setDoneAt(doneAt != null ? doneAt.toLocalDateTime() : null)
+                        .setName(resultSet.getString("name"));
+            } else {
+                throw new NotFoundException();
+            }
+        } catch (final SQLException e) {
+            throw new OperationException("Erro ao consultar ordem", e);
         }
     }
 

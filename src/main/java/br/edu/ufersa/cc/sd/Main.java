@@ -6,7 +6,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import br.edu.ufersa.cc.sd.repositories.OrderRepository;
-import br.edu.ufersa.cc.sd.services.SocketService;
+import br.edu.ufersa.cc.sd.services.LocalizationService;
+import br.edu.ufersa.cc.sd.services.ProxyService;
+import br.edu.ufersa.cc.sd.services.ServerService;
 
 public class Main {
 
@@ -17,8 +19,17 @@ public class Main {
         OrderRepository.initialize();
 
         LOG.info("Inicializando servidor...");
-        final var server = new SocketService();
+        final var server = new ServerService();
         server.run();
+
+        LOG.info("Inicializando servidor de proxy...");
+        final var proxy = new ProxyService();
+        proxy.run();
+
+        LOG.info("Inicializando servidor de localização...");
+        final var localization = new LocalizationService();
+        localization.run();
+
     }
 
 }

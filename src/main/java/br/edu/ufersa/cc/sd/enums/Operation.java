@@ -4,6 +4,7 @@ public enum Operation {
 
     LIST,
     CREATE,
+    FIND,
     UPDATE,
     DELETE,
     COUNT;

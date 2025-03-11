@@ -15,11 +15,13 @@ import org.slf4j.LoggerFactory;
 import br.edu.ufersa.cc.sd.dto.Request;
 import br.edu.ufersa.cc.sd.dto.Response;
 import br.edu.ufersa.cc.sd.enums.ResponseStatus;
+import br.edu.ufersa.cc.sd.exceptions.NotFoundException;
 import br.edu.ufersa.cc.sd.models.Order;
+import br.edu.ufersa.cc.sd.utils.Constants;
 
-public class SocketService implements Runnable {
+public class ServerService implements Runnable {
 
-    private static final Logger LOG = LoggerFactory.getLogger(SocketService.class.getSimpleName());
+    private static final Logger LOG = LoggerFactory.getLogger(ServerService.class.getSimpleName());
 
     private OrderService orderService = new OrderService();
     private ServerSocket serverSocket;
@@ -28,10 +30,10 @@ public class SocketService implements Runnable {
     @Override
     public void run() {
         try {
-            serverSocket = new ServerSocket(8484);
+            serverSocket = new ServerSocket(Constants.SERVER_PORT);
             LOG.info("Servidor iniciado");
             LOG.info("{}", serverSocket);
-            waitForClients(serverSocket);
+            new Thread(() -> waitForClients(serverSocket)).start();
         } catch (final IOException e) {
             e.printStackTrace();
         }
@@ -77,7 +79,7 @@ public class SocketService implements Runnable {
             final var order = request.getItem();
             LOG.info("Executando operação {}...", request.getOperation());
 
-            final Response<Serializable> response;
+            final Response<? extends Serializable> response;
             switch (request.getOperation()) {
                 case LIST:
                     final var list = orderService.listAll();
@@ -88,6 +90,10 @@ public class SocketService implements Runnable {
                     order.setCode(null);
                     orderService.create(order);
                     response = new Response<>(ResponseStatus.OK);
+                    break;
+
+                case FIND:
+                    response = tryToFind(order.getCode());
                     break;
 
                 case UPDATE:
@@ -112,6 +118,14 @@ public class SocketService implements Runnable {
             LOG.info("Cliente encerrado: {}", client.getInetAddress());
         } catch (final IOException | ClassNotFoundException e) {
             e.printStackTrace();
+        }
+    }
+
+    private Response<Order> tryToFind(final Long code) {
+        try {
+            return new Response<>(orderService.findByCode(code));
+        } catch (NotFoundException e) {
+            return new Response<>(ResponseStatus.ERROR);
         }
     }
 
