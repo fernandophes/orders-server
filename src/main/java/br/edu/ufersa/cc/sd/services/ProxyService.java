@@ -19,14 +19,16 @@ import br.edu.ufersa.cc.sd.exceptions.NotFoundException;
 import br.edu.ufersa.cc.sd.exceptions.OperationException;
 import br.edu.ufersa.cc.sd.models.Order;
 import br.edu.ufersa.cc.sd.utils.Constants;
+import lombok.Getter;
 
 public class ProxyService implements Runnable {
 
     private static final Logger LOG = LoggerFactory.getLogger(ProxyService.class.getSimpleName());
 
-    private final CacheService cacheService = new CacheService();
-    private ServerSocket serverSocket;
+    @Getter
     private boolean isAlive = true;
+    private ServerSocket serverSocket;
+    private final CacheService cacheService = new CacheService();
 
     @Override
     public void run() {

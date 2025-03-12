@@ -18,13 +18,15 @@ import br.edu.ufersa.cc.sd.dto.Response;
 import br.edu.ufersa.cc.sd.enums.Operation;
 import br.edu.ufersa.cc.sd.enums.ResponseStatus;
 import br.edu.ufersa.cc.sd.utils.Constants;
+import lombok.Getter;
 
 public class LocalizationService implements Runnable {
 
     private static final Logger LOG = LoggerFactory.getLogger(LocalizationService.class.getSimpleName());
 
-    private ServerSocket serverSocket;
+    @Getter
     private boolean isAlive = true;
+    private ServerSocket serverSocket;
 
     @Override
     public void run() {
@@ -80,7 +82,8 @@ public class LocalizationService implements Runnable {
             final var request = (Request<Serializable>) input.readObject();
             LOG.info("Executando operação {}...", request.getOperation());
 
-            final var address = new InetSocketAddress("localhost", Constants.PROXY_PORT);
+            final var address = new InetSocketAddress(InetAddress.getLocalHost().getHostAddress(),
+                    Constants.PROXY_PORT);
 
             final Response<InetSocketAddress> response;
             if (request.getOperation() == Operation.LOCALIZE) {

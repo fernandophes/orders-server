@@ -18,14 +18,16 @@ import br.edu.ufersa.cc.sd.enums.ResponseStatus;
 import br.edu.ufersa.cc.sd.exceptions.NotFoundException;
 import br.edu.ufersa.cc.sd.models.Order;
 import br.edu.ufersa.cc.sd.utils.Constants;
+import lombok.Getter;
 
 public class ServerService implements Runnable {
 
     private static final Logger LOG = LoggerFactory.getLogger(ServerService.class.getSimpleName());
 
-    private OrderService orderService = new OrderService();
-    private ServerSocket serverSocket;
+    @Getter
     private boolean isAlive = true;
+    private ServerSocket serverSocket;
+    private OrderService orderService = new OrderService();
 
     @Override
     public void run() {
