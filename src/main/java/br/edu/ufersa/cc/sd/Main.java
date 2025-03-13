@@ -2,6 +2,7 @@ package br.edu.ufersa.cc.sd;
 
 import java.awt.BorderLayout;
 import java.awt.GridLayout;
+import java.net.InetSocketAddress;
 import java.sql.SQLException;
 
 import javax.swing.JButton;
@@ -22,7 +23,7 @@ import br.edu.ufersa.cc.sd.utils.Constants;
 
 public class Main {
 
-    private static final String ON = "Ligado";
+    private static final String ON = "Disponível em ";
     private static final String OFF = "Desligado";
     private static final String TURN_ON = "Ligar";
     private static final String TURN_OFF = "Desligar";
@@ -30,7 +31,7 @@ public class Main {
     private static final Logger LOG = LoggerFactory.getLogger(Main.class.getSimpleName());
 
     private static final ServerService SERVER = new ServerService();
-    private static final ProxyService PROXY = new ProxyService();
+    private static final ProxyService PROXY = ProxyService.getInstance();
     private static final LocalizationService LOCALIZATION = new LocalizationService();
 
     public static void main(final String[] args) throws SQLException {
@@ -66,7 +67,7 @@ public class Main {
 
         // Botão 1 e label
         final var locLabel = new JLabel("Servidor de Localização:");
-        final JLabel locStatusLabel = new JLabel(ON);
+        final JLabel locStatusLabel = new JLabel(on(LocalizationService.getAddress()));
         final var locButton = new JButton(TURN_OFF);
         locLabel.setHorizontalAlignment(SwingConstants.CENTER);
         locStatusLabel.setHorizontalAlignment(SwingConstants.CENTER);
@@ -87,7 +88,8 @@ public class Main {
 
         // Botão 2 e label
         final var proxyLabel = new JLabel("Servidor de Proxy:");
-        final var proxyStatusLabel = new JLabel(ON);
+        final var proxyStatusLabel = new JLabel(on(ProxyService.getAddress()));
+        ProxyService.addListenerWhenChangeAddress(address -> proxyStatusLabel.setText(on(address)));
         final var proxyButton = new JButton(TURN_OFF);
         proxyLabel.setHorizontalAlignment(SwingConstants.CENTER);
         proxyStatusLabel.setHorizontalAlignment(SwingConstants.CENTER);
@@ -127,8 +129,9 @@ public class Main {
         painelBotoes.add(serverStatusLabel);
         painelBotoes.add(serverButton);
 
-        final var endLabel = new JLabel("<html>Acesse o Servidor de Localização pelo endereço " + Constants.DEFAULT_HOST + ":"
-                + Constants.LOCALIZATION_PORT + "</html>");
+        final var endLabel = new JLabel(
+                "<html>Acesse o Servidor de Localização pelo endereço " + Constants.getDefaultHost() + ":"
+                        + Constants.LOCALIZATION_PORT + "</html>");
         final var endButton = new JButton("Encerrar tudo");
         endButton.addActionListener(e -> {
             if (LOCALIZATION.isAlive()) {
@@ -151,6 +154,10 @@ public class Main {
 
         // Exibe a janela
         janela.setVisible(true);
+    }
+
+    private static String on(final InetSocketAddress address) {
+        return "<html>Disponível em " + address.getHostString() + ":" + address.getPort() + "</html>";
     }
 
 }

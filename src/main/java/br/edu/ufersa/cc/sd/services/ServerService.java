@@ -32,9 +32,13 @@ public class ServerService implements Runnable {
     @Override
     public void run() {
         try {
-            serverSocket = new ServerSocket(Constants.SERVER_PORT);
+            serverSocket = new ServerSocket(Constants.APPLICATION_PORT);
+            serverSocket.setReuseAddress(true);
+            isAlive = true;
+
             LOG.info("Servidor iniciado");
             LOG.info("{}", serverSocket);
+
             new Thread(() -> waitForClients(serverSocket)).start();
         } catch (final IOException e) {
             e.printStackTrace();
@@ -79,6 +83,7 @@ public class ServerService implements Runnable {
             if (client.getInetAddress().getHostAddress().equals("/127.0.0.1")) {
                 LOG.error("Cliente externo bloqueado: {}", client.getInetAddress());
                 output.writeObject(new Response<>(ResponseStatus.ERROR, "Acesso não autorizado"));
+                output.flush();
                 client.close();
                 return;
             }
@@ -130,6 +135,7 @@ public class ServerService implements Runnable {
             }
 
             output.writeObject(response);
+            output.flush();
 
             client.close();
             LOG.info("Cliente encerrado: {}", client.getInetAddress());

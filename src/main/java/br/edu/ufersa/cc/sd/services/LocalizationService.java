@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -25,18 +24,26 @@ public class LocalizationService implements Runnable {
     private static final Logger LOG = LoggerFactory.getLogger(LocalizationService.class.getSimpleName());
 
     @Getter
+    private static InetSocketAddress address = new InetSocketAddress(Constants.getDefaultHost(),
+            Constants.LOCALIZATION_PORT);
+    private static InetSocketAddress proxyAddress = new InetSocketAddress(Constants.getDefaultHost(),
+            Constants.PROXY_PORT);
+
+    @Getter
     private boolean isAlive = true;
     private ServerSocket serverSocket;
 
     @Override
     public void run() {
         try {
-            serverSocket = new ServerSocket(Constants.LOCALIZATION_PORT);
+            serverSocket = new ServerSocket(address.getPort());
+            serverSocket.setReuseAddress(true);
+            isAlive = true;
+
             LOG.info("Servidor de localização iniciado");
             LOG.info("{}", serverSocket);
 
-            final var localAddress = InetAddress.getLocalHost();
-            LOG.info("Disponível pelo endereço {}:{}", localAddress.getHostAddress(), Constants.LOCALIZATION_PORT);
+            LOG.info("Disponível pelo endereço {}:{}", proxyAddress.getHostString(), proxyAddress.getPort());
             new Thread(() -> waitForClients(serverSocket)).start();
         } catch (final IOException e) {
             e.printStackTrace();
@@ -82,24 +89,36 @@ public class LocalizationService implements Runnable {
             final var request = (Request<Serializable>) input.readObject();
             LOG.info("Executando operação {}...", request.getOperation());
 
-            final var address = new InetSocketAddress(InetAddress.getLocalHost().getHostAddress(),
-                    Constants.PROXY_PORT);
-
             final Response<InetSocketAddress> response;
             if (request.getOperation() == Operation.LOCALIZE) {
-                response = new Response<>(address);
+                if (client.getInetAddress().equals(proxyAddress.getAddress())) {
+                    response = updateSocketAddress(request.getItem());
+                } else {
+                    response = new Response<>(proxyAddress);
+                }
             } else {
                 response = new Response<>(ResponseStatus.ERROR,
                         "O servidor de localização suporta apenas a operação " + Operation.LOCALIZE.toString(),
-                        address);
+                        proxyAddress);
             }
 
             output.writeObject(response);
+            output.flush();
 
             client.close();
             LOG.info("Cliente encerrado: {}", client.getInetAddress());
         } catch (final IOException | ClassNotFoundException e) {
             e.printStackTrace();
+        }
+    }
+
+    private static Response<InetSocketAddress> updateSocketAddress(final Serializable item) {
+        if (item instanceof InetSocketAddress) {
+            proxyAddress = (InetSocketAddress) item;
+            return new Response<>(ResponseStatus.OK);
+        } else {
+            return new Response<>(ResponseStatus.ERROR,
+                    "O objeto precisa ser do tipo InetSocketAddress, tente novamente");
         }
     }
 
