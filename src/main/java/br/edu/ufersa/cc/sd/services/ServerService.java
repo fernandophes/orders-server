@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
@@ -25,6 +26,10 @@ public class ServerService implements Runnable {
     private static final Logger LOG = LoggerFactory.getLogger(ServerService.class.getSimpleName());
 
     @Getter
+    private static InetSocketAddress address = new InetSocketAddress(Constants.getDefaultHost(),
+            Constants.APPLICATION_PORT);
+
+    @Getter
     private boolean isAlive = true;
     private ServerSocket serverSocket;
     private OrderService orderService = new OrderService();
@@ -32,7 +37,7 @@ public class ServerService implements Runnable {
     @Override
     public void run() {
         try {
-            serverSocket = new ServerSocket(Constants.APPLICATION_PORT);
+            serverSocket = new ServerSocket(address.getPort());
             serverSocket.setReuseAddress(true);
             isAlive = true;
 

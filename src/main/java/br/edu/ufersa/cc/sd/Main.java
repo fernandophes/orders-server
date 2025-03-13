@@ -23,7 +23,6 @@ import br.edu.ufersa.cc.sd.utils.Constants;
 
 public class Main {
 
-    private static final String ON = "Disponível em ";
     private static final String OFF = "Desligado";
     private static final String TURN_ON = "Ligar";
     private static final String TURN_OFF = "Desligar";
@@ -78,7 +77,7 @@ public class Main {
                 locButton.setText(TURN_ON);
             } else {
                 LOCALIZATION.run();
-                locStatusLabel.setText(ON);
+                locStatusLabel.setText(on(LocalizationService.getAddress()));
                 locButton.setText(TURN_OFF);
             }
         });
@@ -100,7 +99,7 @@ public class Main {
                 proxyButton.setText(TURN_ON);
             } else {
                 PROXY.run();
-                proxyStatusLabel.setText(ON);
+                proxyStatusLabel.setText(on(ProxyService.getAddress()));
                 proxyButton.setText(TURN_OFF);
             }
         });
@@ -110,7 +109,7 @@ public class Main {
 
         // Botão 3 e label
         final var serverLabel = new JLabel("Servidor de Dados:");
-        final var serverStatusLabel = new JLabel(ON);
+        final var serverStatusLabel = new JLabel(on(ServerService.getAddress()));
         final var serverButton = new JButton(TURN_OFF);
         serverLabel.setHorizontalAlignment(SwingConstants.CENTER);
         serverStatusLabel.setHorizontalAlignment(SwingConstants.CENTER);
@@ -121,7 +120,7 @@ public class Main {
                 serverButton.setText(TURN_ON);
             } else {
                 SERVER.run();
-                serverStatusLabel.setText(ON);
+                serverStatusLabel.setText(on(ServerService.getAddress()));
                 serverButton.setText(TURN_OFF);
             }
         });

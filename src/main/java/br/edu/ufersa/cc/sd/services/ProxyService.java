@@ -49,10 +49,12 @@ public class ProxyService implements Runnable {
             Constants.APPLICATION_PORT);
     private static ProxyService instance = new ProxyService();
 
+    private final CacheService cacheService = new CacheService();
+
     @Getter
     private boolean isAlive = true;
     private ServerSocket serverSocket;
-    private final CacheService cacheService = new CacheService();
+    private TimerTask changeAddressTask;
 
     public static ProxyService getInstance() {
         if (instance == null) {
@@ -83,13 +85,13 @@ public class ProxyService implements Runnable {
             new Thread(() -> waitForClients(serverSocket)).start();
 
             // Configurar mudança de porta a cada 30 segundos
-            final var task = new TimerTask() {
+            changeAddressTask = new TimerTask() {
                 @Override
                 public void run() {
                     changeAddress();
                 }
             };
-            TIMER.schedule(task, TIME_TO_CHANGE);
+            TIMER.schedule(changeAddressTask, TIME_TO_CHANGE);
         } catch (final BindException e) {
             isAlive = false;
             LOG.error("Problema de conexão nessa porta");
@@ -110,6 +112,11 @@ public class ProxyService implements Runnable {
 
         isAlive = false;
         serverSocket = null;
+
+        if (changeAddressTask != null) {
+            changeAddressTask.cancel();
+        }
+        changeAddressTask = null;
     }
 
     private static void changeAddress() {
