@@ -12,6 +12,7 @@ import br.edu.ufersa.cc.sd.enums.Nature;
 import br.edu.ufersa.cc.sd.enums.ResponseStatus;
 import br.edu.ufersa.cc.sd.exceptions.NotFoundException;
 import br.edu.ufersa.cc.sd.models.Order;
+import br.edu.ufersa.cc.sd.utils.Constants;
 
 public class ApplicationServer extends AbstractServer {
 
@@ -20,7 +21,7 @@ public class ApplicationServer extends AbstractServer {
     private final OrderService orderService = new OrderService();
 
     public ApplicationServer() {
-        super(LOG, Nature.APPLICATION);
+        super(LOG, Nature.APPLICATION, Constants.APPLICATION_PORT);
     }
 
     @Override

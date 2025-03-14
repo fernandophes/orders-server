@@ -4,11 +4,8 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
-import java.net.BindException;
 import java.net.InetSocketAddress;
-import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -30,40 +27,27 @@ import br.edu.ufersa.cc.sd.exceptions.NotFoundException;
 import br.edu.ufersa.cc.sd.exceptions.OperationException;
 import br.edu.ufersa.cc.sd.models.Order;
 import br.edu.ufersa.cc.sd.utils.Constants;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
 
-@NoArgsConstructor(access = AccessLevel.PRIVATE)
-public class ProxyServer implements Runnable {
+public class ProxyServer extends AbstractServer {
+
+    private static final Logger LOG = LoggerFactory.getLogger(ProxyServer.class.getSimpleName());
 
     private static final Timer TIMER = new Timer();
-    private static final Logger LOG = LoggerFactory.getLogger(ProxyServer.class.getSimpleName());
     private static final List<Consumer<InetSocketAddress>> LISTENERS = new ArrayList<>();
     private static final Random RANDOM = new Random();
     private static final Long TIME_TO_CHANGE = 15_000L;
 
-    @Getter
-    private static InetSocketAddress address = new InetSocketAddress(Constants.getDefaultHost(), Constants.PROXY_PORT);
     private static InetSocketAddress localizationAddress = new InetSocketAddress(Constants.getDefaultHost(),
             Constants.LOCALIZATION_PORT);
     private static InetSocketAddress applicationAddress = new InetSocketAddress(Constants.getDefaultHost(),
             Constants.APPLICATION_PORT);
-    private static ProxyServer instance = new ProxyServer();
 
     private final CacheService cacheService = new CacheService();
 
-    @Getter
-    private boolean isAlive = true;
-    private ServerSocket serverSocket;
     private TimerTask changeAddressTask;
 
-    public static ProxyServer getInstance() {
-        if (instance == null) {
-            instance = new ProxyServer();
-        }
-
-        return instance;
+    public ProxyServer() {
+        super(LOG, Nature.PROXY, Constants.PROXY_PORT);
     }
 
     public static void addListenerWhenChangeAddress(final Consumer<InetSocketAddress> listener) {
@@ -76,16 +60,9 @@ public class ProxyServer implements Runnable {
 
     @Override
     public void run() {
-        try {
-            serverSocket = new ServerSocket(address.getPort());
-            serverSocket.setReuseAddress(true);
-            isAlive = true;
+        super.run();
 
-            LOG.info("Servidor Proxy iniciado");
-            LOG.info("{}", serverSocket);
-
-            new Thread(() -> waitForClients(serverSocket)).start();
-
+        if (isAlive) {
             // Configurar mudança de porta a cada 30 segundos
             changeAddressTask = new TimerTask() {
                 @Override
@@ -94,26 +71,12 @@ public class ProxyServer implements Runnable {
                 }
             };
             TIMER.schedule(changeAddressTask, TIME_TO_CHANGE);
-        } catch (final BindException e) {
-            isAlive = false;
-            LOG.error("Problema de conexão nessa porta");
-        } catch (final IOException e) {
-            isAlive = false;
-            e.printStackTrace();
         }
     }
 
+    @Override
     public void stop() {
-        if (serverSocket != null && !serverSocket.isClosed()) {
-            try {
-                serverSocket.close();
-            } catch (final IOException e) {
-                e.printStackTrace();
-            }
-        }
-
-        isAlive = false;
-        serverSocket = null;
+        super.stop();
 
         if (changeAddressTask != null) {
             changeAddressTask.cancel();
@@ -121,7 +84,7 @@ public class ProxyServer implements Runnable {
         changeAddressTask = null;
     }
 
-    private static void changeAddress() {
+    private void changeAddress() {
         LOG.info("Iniciando mudança de porta...");
 
         // Gerar uma nova porta aleatoriamente
@@ -136,10 +99,10 @@ public class ProxyServer implements Runnable {
 
             // Reiniciar o servidor
             LOG.info("Reiniciando...");
-            getInstance().stop();
-            getInstance().run();
+            stop();
+            run();
 
-            if (getInstance().isAlive()) {
+            if (isAlive) {
                 LISTENERS.forEach(consumer -> consumer.accept(address));
                 return;
             }
@@ -158,7 +121,7 @@ public class ProxyServer implements Runnable {
         TIMER.schedule(task, TIME_TO_CHANGE);
     }
 
-    private static boolean notifyLocalizationService(final Integer newPort) {
+    private boolean notifyLocalizationService(final Integer newPort) {
         try (final var socket = new Socket(localizationAddress.getHostString(), localizationAddress.getPort())) {
             final var output = new ObjectOutputStream(socket.getOutputStream());
             output.flush();
@@ -188,65 +151,6 @@ public class ProxyServer implements Runnable {
         } catch (final ClassNotFoundException e) {
             LOG.error("A resposta não pôde ser interpretada", e);
             return false;
-        }
-    }
-
-    private void waitForClients(final ServerSocket serverSocket) {
-        try {
-            while (isAlive) {
-                LOG.info("Aguardando clientes...");
-                final var client = serverSocket.accept();
-                new Thread(() -> handleClient(client)).start();
-            }
-        } catch (final SocketException e) {
-            LOG.info("Servidor encerrado");
-        } catch (final IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void handleClient(final Socket client) {
-        LOG.info("Cliente conectado: {}", client.getInetAddress());
-        try {
-            final var output = new ObjectOutputStream(client.getOutputStream());
-            final var input = new ObjectInputStream(client.getInputStream());
-
-            LOG.info("Aguardando mensagens...");
-
-            @SuppressWarnings("unchecked")
-            final var request = (Request<Order>) input.readObject();
-            LOG.info("Executando operação {}...", request.getOperation());
-
-            final Response<? extends Serializable> response;
-            switch (request.getOperation()) {
-                case LOCALIZE:
-                    response = new Response<>(ResponseStatus.ERROR, "O servidor de Proxy não faz Localização");
-                    break;
-
-                case FIND:
-                    response = getFromCache(request);
-                    break;
-
-                case UPDATE:
-                    response = updateIncludingCache(request);
-                    break;
-
-                case DELETE:
-                    response = deleteIncludingCache(request);
-                    break;
-
-                default:
-                    response = redirectRequestToServer(request);
-                    break;
-            }
-
-            output.writeObject(response);
-            output.flush();
-
-            client.close();
-            LOG.info("Cliente encerrado: {}", client.getInetAddress());
-        } catch (final IOException | ClassNotFoundException e) {
-            e.printStackTrace();
         }
     }
 
@@ -310,6 +214,28 @@ public class ProxyServer implements Runnable {
             throw new ConnectionException(e);
         } catch (final ClassNotFoundException e) {
             throw new OperationException("A resposta não pôde ser interpretada", e);
+        }
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    protected Response<? extends Serializable> handleMessage(Request<? extends Serializable> request) {
+        final var orderRequest = (Request<Order>) request;
+        switch (request.getOperation()) {
+            case LOCALIZE:
+                return new Response<>(ResponseStatus.ERROR, "O servidor de Proxy não faz Localização");
+
+            case FIND:
+                return getFromCache(orderRequest);
+
+            case UPDATE:
+                return updateIncludingCache(orderRequest);
+
+            case DELETE:
+                return deleteIncludingCache(orderRequest);
+
+            default:
+                return redirectRequestToServer(orderRequest);
         }
     }
 

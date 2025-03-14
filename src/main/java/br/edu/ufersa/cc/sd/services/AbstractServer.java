@@ -24,16 +24,17 @@ public abstract class AbstractServer implements Runnable {
     protected final Logger logger;
 
     @Getter
-    protected InetSocketAddress address = new InetSocketAddress(Constants.getDefaultHost(), Constants.APPLICATION_PORT);
+    protected InetSocketAddress address;
     protected final Nature nature;
 
     @Getter
     protected boolean isAlive = true;
     protected ServerSocket serverSocket;
 
-    protected AbstractServer(final Logger logger, final Nature nature) {
+    protected AbstractServer(final Logger logger, final Nature nature, final Integer port) {
         this.logger = logger;
         this.nature = nature;
+        this.address = new InetSocketAddress(Constants.getDefaultHost(), port);
     }
 
     @Override
@@ -43,8 +44,8 @@ public abstract class AbstractServer implements Runnable {
             serverSocket.setReuseAddress(true);
             isAlive = true;
 
-            logger.info("Servidor {} iniciado", nature);
-            logger.info("{}", serverSocket);
+            logger.info("Servidor de {} iniciado", nature);
+            logger.info("Disponível pelo endereço {}:{}", address.getHostString(), address.getPort());
 
             new Thread(() -> waitForClients(serverSocket)).start();
         } catch (final IOException e) {
@@ -65,7 +66,7 @@ public abstract class AbstractServer implements Runnable {
         serverSocket = null;
     }
 
-    private void waitForClients(final ServerSocket serverSocket) {
+    protected void waitForClients(final ServerSocket serverSocket) {
         try {
             while (isAlive) {
                 logger.info("Aguardando clientes...");
@@ -84,11 +85,12 @@ public abstract class AbstractServer implements Runnable {
 
         try {
             final var output = new ObjectOutputStream(client.getOutputStream());
+            output.flush();
             final var input = new ObjectInputStream(client.getInputStream());
 
-            // O servidor não pode receber chamadas externas
-            if (client.getInetAddress().getHostAddress().equals("/127.0.0.1")) {
-                logger.error("Cliente externo bloqueado: {}", client.getInetAddress());
+            // Validar cliente
+            if (!validateClient(client)) {
+                logger.error("Cliente não autorizado: {}", client.getInetAddress());
                 output.writeObject(new Response<>(ResponseStatus.ERROR, "Acesso não autorizado"));
                 output.flush();
                 client.close();
@@ -101,19 +103,20 @@ public abstract class AbstractServer implements Runnable {
             final var request = (Request<Order>) input.readObject();
             logger.info("Executando operação {}...", request.getOperation());
 
-            final Response<? extends Serializable> response;
-            response = handleMessage(request);
-
-            output.writeObject(response);
+            output.writeObject(handleMessage(request));
             output.flush();
 
             client.close();
             logger.info("Cliente encerrado: {}", client.getInetAddress());
         } catch (final IOException | ClassNotFoundException e) {
-            logger.error("Erro ao aceitar novoc clientes", e);
+            logger.error("Erro ao aceitar novos clientes", e);
         }
     }
 
-    protected abstract Response<Serializable> handleMessage(final Request<? extends Serializable> request);
+    protected boolean validateClient(final Socket socket) {
+        return true;
+    }
+
+    protected abstract Response<? extends Serializable> handleMessage(Request<? extends Serializable> request);
 
 }

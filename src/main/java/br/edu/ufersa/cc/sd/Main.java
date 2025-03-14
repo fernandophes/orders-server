@@ -30,7 +30,7 @@ public class Main {
     private static final Logger LOG = LoggerFactory.getLogger(Main.class.getSimpleName());
 
     private static final ApplicationServer APPLICATION = new ApplicationServer();
-    private static final ProxyServer PROXY = ProxyServer.getInstance();
+    private static final ProxyServer PROXY = new ProxyServer();
     private static final LocalizationServer LOCALIZATION = new LocalizationServer();
 
     public static void main(final String[] args) throws SQLException {
@@ -66,7 +66,7 @@ public class Main {
 
         // Botão 1 e label
         final var locLabel = new JLabel("Servidor de Localização:");
-        final JLabel locStatusLabel = new JLabel(on(LocalizationServer.getAddress()));
+        final JLabel locStatusLabel = new JLabel(on(LOCALIZATION.getAddress()));
         final var locButton = new JButton(TURN_OFF);
         locLabel.setHorizontalAlignment(SwingConstants.CENTER);
         locStatusLabel.setHorizontalAlignment(SwingConstants.CENTER);
@@ -77,7 +77,7 @@ public class Main {
                 locButton.setText(TURN_ON);
             } else {
                 LOCALIZATION.run();
-                locStatusLabel.setText(on(LocalizationServer.getAddress()));
+                locStatusLabel.setText(on(LOCALIZATION.getAddress()));
                 locButton.setText(TURN_OFF);
             }
         });
@@ -87,7 +87,7 @@ public class Main {
 
         // Botão 2 e label
         final var proxyLabel = new JLabel("Servidor de Proxy:");
-        final var proxyStatusLabel = new JLabel(on(ProxyServer.getAddress()));
+        final var proxyStatusLabel = new JLabel(on(PROXY.getAddress()));
         ProxyServer.addListenerWhenChangeAddress(address -> proxyStatusLabel.setText(on(address)));
         final var proxyButton = new JButton(TURN_OFF);
         proxyLabel.setHorizontalAlignment(SwingConstants.CENTER);
@@ -99,7 +99,7 @@ public class Main {
                 proxyButton.setText(TURN_ON);
             } else {
                 PROXY.run();
-                proxyStatusLabel.setText(on(ProxyServer.getAddress()));
+                proxyStatusLabel.setText(on(PROXY.getAddress()));
                 proxyButton.setText(TURN_OFF);
             }
         });
