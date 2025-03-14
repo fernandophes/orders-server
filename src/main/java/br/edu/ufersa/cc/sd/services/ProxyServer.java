@@ -35,10 +35,10 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
-public class ProxyService implements Runnable {
+public class ProxyServer implements Runnable {
 
     private static final Timer TIMER = new Timer();
-    private static final Logger LOG = LoggerFactory.getLogger(ProxyService.class.getSimpleName());
+    private static final Logger LOG = LoggerFactory.getLogger(ProxyServer.class.getSimpleName());
     private static final List<Consumer<InetSocketAddress>> LISTENERS = new ArrayList<>();
     private static final Random RANDOM = new Random();
     private static final Long TIME_TO_CHANGE = 15_000L;
@@ -49,7 +49,7 @@ public class ProxyService implements Runnable {
             Constants.LOCALIZATION_PORT);
     private static InetSocketAddress applicationAddress = new InetSocketAddress(Constants.getDefaultHost(),
             Constants.APPLICATION_PORT);
-    private static ProxyService instance = new ProxyService();
+    private static ProxyServer instance = new ProxyServer();
 
     private final CacheService cacheService = new CacheService();
 
@@ -58,9 +58,9 @@ public class ProxyService implements Runnable {
     private ServerSocket serverSocket;
     private TimerTask changeAddressTask;
 
-    public static ProxyService getInstance() {
+    public static ProxyServer getInstance() {
         if (instance == null) {
-            instance = new ProxyService();
+            instance = new ProxyServer();
         }
 
         return instance;

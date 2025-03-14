@@ -21,9 +21,9 @@ import br.edu.ufersa.cc.sd.enums.ResponseStatus;
 import br.edu.ufersa.cc.sd.utils.Constants;
 import lombok.Getter;
 
-public class LocalizationService implements Runnable {
+public class LocalizationServer implements Runnable {
 
-    private static final Logger LOG = LoggerFactory.getLogger(LocalizationService.class.getSimpleName());
+    private static final Logger LOG = LoggerFactory.getLogger(LocalizationServer.class.getSimpleName());
 
     @Getter
     private static InetSocketAddress address = new InetSocketAddress(Constants.getDefaultHost(),
@@ -117,7 +117,7 @@ public class LocalizationService implements Runnable {
 
     private static Response<InetSocketAddress> updateSocketAddress(final Serializable item) {
         if (item instanceof NotificationDto) {
-            proxyAddress = ((NotificationDto) item).getOldAddress();
+            proxyAddress = ((NotificationDto) item).getNewAddress();
             LOG.info("Recebido novo endereço do Proxy: {}", proxyAddress);
             return new Response<>(ResponseStatus.OK);
         } else {
