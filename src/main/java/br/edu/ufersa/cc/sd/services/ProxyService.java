@@ -19,8 +19,10 @@ import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import br.edu.ufersa.cc.sd.dto.NotificationDto;
 import br.edu.ufersa.cc.sd.dto.Request;
 import br.edu.ufersa.cc.sd.dto.Response;
+import br.edu.ufersa.cc.sd.enums.Nature;
 import br.edu.ufersa.cc.sd.enums.Operation;
 import br.edu.ufersa.cc.sd.enums.ResponseStatus;
 import br.edu.ufersa.cc.sd.exceptions.ConnectionException;
@@ -39,7 +41,7 @@ public class ProxyService implements Runnable {
     private static final Logger LOG = LoggerFactory.getLogger(ProxyService.class.getSimpleName());
     private static final List<Consumer<InetSocketAddress>> LISTENERS = new ArrayList<>();
     private static final Random RANDOM = new Random();
-    private static final Long TIME_TO_CHANGE = 5_000L;
+    private static final Long TIME_TO_CHANGE = 15_000L;
 
     @Getter
     private static InetSocketAddress address = new InetSocketAddress(Constants.getDefaultHost(), Constants.PROXY_PORT);
@@ -162,8 +164,9 @@ public class ProxyService implements Runnable {
             output.flush();
             final var input = new ObjectInputStream(socket.getInputStream());
 
-            final var newAddress = new InetSocketAddress(Constants.getDefaultHost(), newPort);
-            final var request = new Request<>(Operation.LOCALIZE, newAddress);
+            final var notification = new NotificationDto(Nature.PROXY, address,
+                    new InetSocketAddress(Constants.getDefaultHost(), newPort));
+            final var request = new Request<>(Operation.LOCALIZE, notification);
 
             LOG.info("Enviando requisição...");
             output.writeObject(request);

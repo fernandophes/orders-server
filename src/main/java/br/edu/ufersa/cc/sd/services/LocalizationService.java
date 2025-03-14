@@ -12,8 +12,10 @@ import java.net.SocketException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import br.edu.ufersa.cc.sd.dto.NotificationDto;
 import br.edu.ufersa.cc.sd.dto.Request;
 import br.edu.ufersa.cc.sd.dto.Response;
+import br.edu.ufersa.cc.sd.enums.Nature;
 import br.edu.ufersa.cc.sd.enums.Operation;
 import br.edu.ufersa.cc.sd.enums.ResponseStatus;
 import br.edu.ufersa.cc.sd.utils.Constants;
@@ -91,7 +93,8 @@ public class LocalizationService implements Runnable {
 
             final Response<InetSocketAddress> response;
             if (request.getOperation() == Operation.LOCALIZE) {
-                if (client.getInetAddress().equals(proxyAddress.getAddress())) {
+                final var item = request.getItem();
+                if (item instanceof NotificationDto && ((NotificationDto) item).getNature().equals(Nature.PROXY)) {
                     response = updateSocketAddress(request.getItem());
                 } else {
                     response = new Response<>(proxyAddress);
@@ -113,8 +116,9 @@ public class LocalizationService implements Runnable {
     }
 
     private static Response<InetSocketAddress> updateSocketAddress(final Serializable item) {
-        if (item instanceof InetSocketAddress) {
-            proxyAddress = (InetSocketAddress) item;
+        if (item instanceof NotificationDto) {
+            proxyAddress = ((NotificationDto) item).getOldAddress();
+            LOG.info("Recebido novo endereço do Proxy: {}", proxyAddress);
             return new Response<>(ResponseStatus.OK);
         } else {
             return new Response<>(ResponseStatus.ERROR,
