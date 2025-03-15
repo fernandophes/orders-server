@@ -37,18 +37,19 @@ public class LocalizationServer extends AbstractServer {
     }
 
     @Override
-    protected Response<? extends Serializable> handleMessage(Request<? extends Serializable> request) {
+    @SuppressWarnings("unchecked")
+    protected <T extends Serializable> Response<T> handleMessage(Request<? extends Serializable> request) {
         if (request.getOperation() == Operation.LOCALIZE) {
             final var item = request.getItem();
             if (item instanceof NotificationDto && ((NotificationDto) item).getNature().equals(Nature.PROXY)) {
-                return updateSocketAddress(request.getItem());
+                return (Response<T>) updateSocketAddress(request.getItem());
             } else {
-                return new Response<>(proxyAddress);
+                return new Response<>((T) proxyAddress);
             }
         } else {
             return new Response<>(ResponseStatus.ERROR,
                     "O servidor de localização suporta apenas a operação " + Operation.LOCALIZE.toString(),
-                    proxyAddress);
+                    (T) proxyAddress);
         }
     }
 

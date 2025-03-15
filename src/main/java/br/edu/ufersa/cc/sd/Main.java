@@ -86,7 +86,7 @@ public class Main {
         final var proxyAddress = addServer(PROXY, "Proxy", grid);
         addServer(APPLICATION, "Aplicação", grid);
 
-        ProxyServer.addListenerWhenChangeAddress(address -> proxyAddress.setText(on(address)));
+        PROXY.addListenerWhenChangeAddress(address -> proxyAddress.setText(on(address)));
 
         // Adicionar o painel de botões à janela
         frame.add(grid, BorderLayout.CENTER);

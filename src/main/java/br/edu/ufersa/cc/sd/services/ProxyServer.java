@@ -32,17 +32,17 @@ public class ProxyServer extends AbstractServer {
 
     private static final Logger LOG = LoggerFactory.getLogger(ProxyServer.class.getSimpleName());
 
-    private static final Timer TIMER = new Timer();
-    private static final List<Consumer<InetSocketAddress>> LISTENERS = new ArrayList<>();
     private static final Random RANDOM = new Random();
+    private static final Timer TIMER = new Timer();
     private static final Long TIME_TO_CHANGE = 15_000L;
 
-    private static InetSocketAddress localizationAddress = new InetSocketAddress(Constants.getDefaultHost(),
-            Constants.LOCALIZATION_PORT);
-    private static InetSocketAddress applicationAddress = new InetSocketAddress(Constants.getDefaultHost(),
-            Constants.APPLICATION_PORT);
-
+    private final List<Consumer<InetSocketAddress>> listeners = new ArrayList<>();
     private final CacheService cacheService = new CacheService();
+
+    private InetSocketAddress localizationAddress = new InetSocketAddress(Constants.getDefaultHost(),
+            Constants.LOCALIZATION_PORT);
+    private InetSocketAddress applicationAddress = new InetSocketAddress(Constants.getDefaultHost(),
+            Constants.APPLICATION_PORT);
 
     private TimerTask changeAddressTask;
 
@@ -50,12 +50,12 @@ public class ProxyServer extends AbstractServer {
         super(LOG, Nature.PROXY, Constants.PROXY_PORT);
     }
 
-    public static void addListenerWhenChangeAddress(final Consumer<InetSocketAddress> listener) {
-        LISTENERS.add(listener);
+    public void addListenerWhenChangeAddress(final Consumer<InetSocketAddress> listener) {
+        listeners.add(listener);
     }
 
-    public static void removeListenerWhenChangeAddress(final Consumer<InetSocketAddress> listener) {
-        LISTENERS.remove(listener);
+    public void removeListenerWhenChangeAddress(final Consumer<InetSocketAddress> listener) {
+        listeners.remove(listener);
     }
 
     @Override
@@ -103,7 +103,7 @@ public class ProxyServer extends AbstractServer {
             run();
 
             if (isAlive) {
-                LISTENERS.forEach(consumer -> consumer.accept(address));
+                listeners.forEach(consumer -> consumer.accept(address));
                 return;
             }
         }
@@ -219,20 +219,20 @@ public class ProxyServer extends AbstractServer {
 
     @Override
     @SuppressWarnings("unchecked")
-    protected Response<? extends Serializable> handleMessage(Request<? extends Serializable> request) {
+    protected <T extends Serializable> Response<T> handleMessage(Request<? extends Serializable> request) {
         final var orderRequest = (Request<Order>) request;
         switch (request.getOperation()) {
             case LOCALIZE:
                 return new Response<>(ResponseStatus.ERROR, "O servidor de Proxy não faz Localização");
 
             case FIND:
-                return getFromCache(orderRequest);
+                return (Response<T>) getFromCache(orderRequest);
 
             case UPDATE:
-                return updateIncludingCache(orderRequest);
+                return (Response<T>) updateIncludingCache(orderRequest);
 
             case DELETE:
-                return deleteIncludingCache(orderRequest);
+                return (Response<T>) deleteIncludingCache(orderRequest);
 
             default:
                 return redirectRequestToServer(orderRequest);

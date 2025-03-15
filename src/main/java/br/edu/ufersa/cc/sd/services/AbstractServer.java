@@ -8,6 +8,8 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.slf4j.Logger;
 
@@ -23,9 +25,11 @@ public abstract class AbstractServer implements Runnable {
 
     protected final Logger logger;
 
+    protected final Set<InetSocketAddress> replicasAddresses = new HashSet<>();
+    protected final Nature nature;
+
     @Getter
     protected InetSocketAddress address;
-    protected final Nature nature;
 
     @Getter
     protected boolean isAlive = true;
@@ -117,6 +121,6 @@ public abstract class AbstractServer implements Runnable {
         return socket != null;
     }
 
-    protected abstract Response<? extends Serializable> handleMessage(Request<? extends Serializable> request);
+    protected abstract <T extends Serializable> Response<T> handleMessage(Request<? extends Serializable> request);
 
 }

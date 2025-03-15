@@ -25,7 +25,8 @@ public class ApplicationServer extends AbstractServer {
     }
 
     @Override
-    protected Response<Serializable> handleMessage(final Request<? extends Serializable> request) {
+    @SuppressWarnings("unchecked")
+    protected <T extends Serializable> Response<T> handleMessage(final Request<? extends Serializable> request) {
         final var order = (Order) request.getItem();
         switch (request.getOperation()) {
             case LOCALIZE:
@@ -33,7 +34,7 @@ public class ApplicationServer extends AbstractServer {
 
             case LIST:
                 final var list = orderService.listAll();
-                return new Response<>(new ArrayList<>(list));
+                return new Response<>((T) new ArrayList<>(list));
 
             case CREATE:
                 order.setCode(null);
@@ -42,7 +43,7 @@ public class ApplicationServer extends AbstractServer {
 
             case FIND:
                 try {
-                    return new Response<>(orderService.findByCode(order.getCode()));
+                    return new Response<>((T) orderService.findByCode(order.getCode()));
                 } catch (final NotFoundException e) {
                     return new Response<>(ResponseStatus.ERROR, "Ordem não encontrada");
                 }
@@ -56,7 +57,7 @@ public class ApplicationServer extends AbstractServer {
                 return new Response<>(ResponseStatus.OK);
 
             case COUNT:
-                return new Response<>(orderService.countAll());
+                return new Response<>((T) orderService.countAll());
 
             default:
                 return new Response<>(ResponseStatus.ERROR, "Operação não reconhecida");
