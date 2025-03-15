@@ -108,7 +108,7 @@ public class Main {
         painelBotoes.add(proxyButton);
 
         // Botão 3 e label
-        final var applicationLabel = new JLabel("Servidor de Dados:");
+        final var applicationLabel = new JLabel("Servidor de Aplicação:");
         final var applicationStatusLabel = new JLabel(on(APPLICATION.getAddress()));
         final var applicationButton = new JButton(TURN_OFF);
         applicationLabel.setHorizontalAlignment(SwingConstants.CENTER);

@@ -29,7 +29,7 @@ public class ApplicationServer extends AbstractServer {
         final var order = (Order) request.getItem();
         switch (request.getOperation()) {
             case LOCALIZE:
-                return new Response<>(ResponseStatus.ERROR, "O servidor de Dados não faz Localização");
+                return new Response<>(ResponseStatus.ERROR, "O servidor de Aplicação não faz Localização");
 
             case LIST:
                 final var list = orderService.listAll();
