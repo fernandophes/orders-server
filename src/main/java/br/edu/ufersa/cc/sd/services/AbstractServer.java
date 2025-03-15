@@ -114,7 +114,7 @@ public abstract class AbstractServer implements Runnable {
     }
 
     protected boolean validateClient(final Socket socket) {
-        return true;
+        return socket != null;
     }
 
     protected abstract Response<? extends Serializable> handleMessage(Request<? extends Serializable> request);
