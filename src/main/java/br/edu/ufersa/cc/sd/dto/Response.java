@@ -45,4 +45,12 @@ public class Response<T extends Serializable> implements Serializable {
         this.type = (Class<T>) item.getClass();
     }
 
+    public static <T extends Serializable> Response<T> ok() {
+        return new Response<>(ResponseStatus.OK);
+    }
+
+    public static <T extends Serializable> Response<T> error() {
+        return new Response<>(ResponseStatus.ERROR);
+    }
+
 }

@@ -1,15 +1,20 @@
 package br.edu.ufersa.cc.sd;
 
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.GridLayout;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.net.InetSocketAddress;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 
+import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.SwingConstants;
 import javax.swing.WindowConstants;
@@ -20,33 +25,22 @@ import org.slf4j.LoggerFactory;
 import br.edu.ufersa.cc.sd.services.LocalizationServer;
 import br.edu.ufersa.cc.sd.services.OrderService;
 import br.edu.ufersa.cc.sd.services.ProxyServer;
+import br.edu.ufersa.cc.sd.utils.Constants;
+import br.edu.ufersa.cc.sd.enums.Nature;
 import br.edu.ufersa.cc.sd.services.AbstractServer;
 import br.edu.ufersa.cc.sd.services.ApplicationServer;
 
 public class Main {
 
-    private static final String OFF = "Desligado";
-    private static final String TURN_ON = "Ligar";
-    private static final String TURN_OFF = "Desligar";
-
     private static final Logger LOG = LoggerFactory.getLogger(Main.class.getSimpleName());
 
-    private static final ApplicationServer APPLICATION = new ApplicationServer();
-    private static final ProxyServer PROXY = new ProxyServer();
-    private static final LocalizationServer LOCALIZATION = new LocalizationServer();
+    private static JPanel box = new JPanel();
+    private static final JPanel SERVERS_GRID = new JPanel();
+    private static final List<AbstractServer> SERVERS = new ArrayList<>();
 
     public static void main(final String[] args) throws SQLException {
         LOG.info("Inicializando banco de dados...");
         OrderService.initialize();
-
-        LOG.info("Inicializando servidor...");
-        APPLICATION.run();
-
-        LOG.info("Inicializando servidor de proxy...");
-        PROXY.run();
-
-        LOG.info("Inicializando servidor de localização...");
-        LOCALIZATION.run();
 
         openWindow();
     }
@@ -60,72 +54,107 @@ public class Main {
         frame.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(final WindowEvent e) {
-                if (LOCALIZATION.isAlive()) {
-                    LOCALIZATION.stop();
-                }
-                if (PROXY.isAlive()) {
-                    PROXY.stop();
-                }
-                if (APPLICATION.isAlive()) {
-                    APPLICATION.stop();
-                }
-                super.windowClosing(e);
+                SERVERS.forEach(AbstractServer::stop);
             }
         });
 
+        box.setLayout(new BoxLayout(box, BoxLayout.PAGE_AXIS));
+
         // Label com o comando
         final var title = new JLabel("Controle os servidores");
-        title.setHorizontalAlignment(SwingConstants.CENTER);
-        frame.add(title, BorderLayout.NORTH);
+        box.add(title);
 
         // Painel para os botões e labels
-        final var grid = new JPanel(new GridLayout(3, 3));
-
-        // Servidores
-        addServer(LOCALIZATION, "Localização", grid);
-        final var proxyAddress = addServer(PROXY, "Proxy", grid);
-        addServer(APPLICATION, "Aplicação", grid);
-
-        PROXY.addListenerWhenChangeAddress(address -> proxyAddress.setText(on(address)));
+        refreshGrid();
 
         // Adicionar o painel de botões à janela
-        frame.add(grid, BorderLayout.CENTER);
+        box.add(SERVERS_GRID);
+
+        // Label com o comando
+        final var replicaTitle = new JLabel("Criar réplicas");
+        box.add(replicaTitle);
+
+        /*
+         * Área das réplicas
+         */
+        final var replicaGrid = new JPanel(new GridLayout(1, 3));
+
+        final var replicaLocalizationButton = new JButton("Localização");
+        final var replicaProxyButton = new JButton("Proxy");
+        final var replicaApplicationButton = new JButton("Aplicação");
+
+        replicaLocalizationButton.addActionListener(e -> addAndStartServer(new LocalizationServer()));
+        replicaProxyButton.addActionListener(e -> addAndStartServer(createProxyServer()));
+        replicaApplicationButton.addActionListener(e -> addAndStartServer(new ApplicationServer()));
+
+        replicaGrid.add(replicaLocalizationButton);
+        replicaGrid.add(replicaProxyButton);
+        replicaGrid.add(replicaApplicationButton);
+
+        box.add(replicaGrid);
 
         // Exibir a janela
+        frame.add(box, BorderLayout.CENTER);
         frame.setVisible(true);
     }
 
-    private static JLabel addServer(final AbstractServer server, final String labelText, final JPanel panel) {
-        final var label = new JLabel(labelText);
-        label.setHorizontalAlignment(SwingConstants.CENTER);
+    private static void refreshGrid() {
+        SERVERS_GRID.removeAll();
+        SERVERS_GRID.setLayout(new GridLayout(SERVERS.size(), 3));
+        SERVERS.forEach(server -> addServerToGrid(server, server.getNature().getName()));
 
-        final var address = new JLabel(on(server.getAddress()));
-        address.setHorizontalAlignment(SwingConstants.CENTER);
-
-        final var button = new JButton(TURN_OFF);
-        button.addActionListener(e -> switchServerState(server, address, button));
-
-        panel.add(label);
-        panel.add(address);
-        panel.add(button);
-
-        return address;
+        box.updateUI();
     }
 
-    private static void switchServerState(final AbstractServer server, final JLabel statusLabel, final JButton button) {
-        if (server.isAlive()) {
-            server.stop();
-            statusLabel.setText(OFF);
-            button.setText(TURN_ON);
-        } else {
-            server.run();
-            statusLabel.setText(on(server.getAddress()));
-            button.setText(TURN_OFF);
-        }
+    private static void addAndStartServer(final AbstractServer server) {
+        SERVERS.add(server);
+        server.run();
+        refreshGrid();
+    }
+
+    private static void addServerToGrid(final AbstractServer server, final String labelText) {
+        final var label = new JLabel(labelText, SwingConstants.CENTER);
+
+        final var addressLabel = new JLabel(on(server.getAddress()), SwingConstants.CENTER);
+        addressLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        final var button = new JButton("Desligar");
+        button.addActionListener(e -> stopServer(server));
+
+        SERVERS_GRID.add(label);
+        SERVERS_GRID.add(addressLabel);
+        SERVERS_GRID.add(button);
+    }
+
+    private static void stopServer(final AbstractServer server) {
+        server.stop();
+        SERVERS.remove(server);
+        refreshGrid();
     }
 
     private static String on(final InetSocketAddress address) {
-        return "<html>Disponível em " + address.getHostString() + ":" + address.getPort() + "</html>";
+        return "<html><center>Disponível em " + address.getHostString() + ":" + address.getPort() + "</center></html>";
+    }
+
+    private static ProxyServer createProxyServer() {
+        final var localizationAddress = askForAddress(Nature.LOCALIZATION, "Conectar ao servidor de localização");
+        final var applicationAddress = askForAddress(Nature.APPLICATION, "Conectar ao servidor de aplicação");
+
+        return new ProxyServer(localizationAddress, applicationAddress);
+    }
+
+    private static InetSocketAddress askForAddress(final Nature nature, final String message) {
+        final var localizationServer = SERVERS.stream()
+                .dropWhile(server -> server.getNature() != nature)
+                .map(AbstractServer::getAddress)
+                .findFirst().orElse(new InetSocketAddress(Constants.getDefaultHost(), 0000));
+        final var placeholder = localizationServer.getHostString() + ":" + localizationServer.getPort();
+        final var optionPane = JOptionPane.showInputDialog(message, placeholder);
+
+        final var divider = optionPane.indexOf(":");
+        final var host = optionPane.substring(0, divider);
+        final var port = Integer.parseInt(optionPane.substring(divider + 1));
+        return new InetSocketAddress(host, port);
     }
 
 }

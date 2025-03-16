@@ -9,13 +9,16 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.util.HashSet;
+import java.util.Random;
 import java.util.Set;
 
 import org.slf4j.Logger;
 
+import br.edu.ufersa.cc.sd.dto.Notification;
 import br.edu.ufersa.cc.sd.dto.Request;
 import br.edu.ufersa.cc.sd.dto.Response;
 import br.edu.ufersa.cc.sd.enums.Nature;
+import br.edu.ufersa.cc.sd.enums.Operation;
 import br.edu.ufersa.cc.sd.enums.ResponseStatus;
 import br.edu.ufersa.cc.sd.models.Order;
 import br.edu.ufersa.cc.sd.utils.Constants;
@@ -23,10 +26,13 @@ import lombok.Getter;
 
 public abstract class AbstractServer implements Runnable {
 
+    private static final Random RANDOM = new Random();
+
     protected final Logger logger;
 
-    protected final Set<InetSocketAddress> replicasAddresses = new HashSet<>();
+    @Getter
     protected final Nature nature;
+    protected final Set<InetSocketAddress> replicasAddresses = new HashSet<>();
 
     @Getter
     protected InetSocketAddress address;
@@ -35,21 +41,23 @@ public abstract class AbstractServer implements Runnable {
     protected boolean isAlive = true;
     protected ServerSocket serverSocket;
 
-    protected AbstractServer(final Logger logger, final Nature nature, final Integer port) {
+    protected AbstractServer(final Logger logger, final Nature nature) {
         this.logger = logger;
         this.nature = nature;
-        this.address = new InetSocketAddress(Constants.getDefaultHost(), port);
     }
 
     @Override
     public void run() {
         try {
-            serverSocket = new ServerSocket(address.getPort());
+            final var port = RANDOM.nextInt(20) + nature.getPortRange();
+
+            serverSocket = new ServerSocket(port);
             serverSocket.setReuseAddress(true);
+            address = new InetSocketAddress(Constants.getDefaultHost(), port);
             isAlive = true;
 
             logger.info("Servidor de {} iniciado", nature);
-            logger.info("Disponível pelo endereço {}:{}", address.getHostString(), address.getPort());
+            logger.info("Disponível pelo endereço {}:{}", address.getHostString(), port);
 
             new Thread(() -> waitForClients(serverSocket)).start();
         } catch (final IOException e) {
@@ -122,5 +130,51 @@ public abstract class AbstractServer implements Runnable {
     }
 
     protected abstract <T extends Serializable> Response<T> handleMessage(Request<? extends Serializable> request);
+
+    protected boolean attachTo(final InetSocketAddress targetAddress) {
+            final var notification = new Notification(Nature.PROXY, address);
+            final var request = new Request<>(Operation.ATTACH, notification);
+            final var response = send(targetAddress, request);
+
+            return response.getStatus() == ResponseStatus.OK;
+    }
+
+    protected boolean detachFrom(final InetSocketAddress targetAddress) {
+            final var notification = new Notification(Nature.PROXY, address);
+            final var request = new Request<>(Operation.DETACH, notification);
+            final var response = send(targetAddress, request);
+
+            return response.getStatus() == ResponseStatus.OK;
+    }
+
+    protected <T extends Serializable> Response<T> send(final InetSocketAddress targetAddress,
+            final Request<? extends Serializable> request) {
+        try (final var socket = new Socket(targetAddress.getHostString(), targetAddress.getPort())) {
+            final var output = new ObjectOutputStream(socket.getOutputStream());
+            output.flush();
+            final var input = new ObjectInputStream(socket.getInputStream());
+
+            logger.info("Enviando requisição...");
+            output.writeObject(request);
+            output.flush();
+
+            logger.info("Aguardando resposta...");
+            @SuppressWarnings("unchecked")
+            final var response = (Response<T>) input.readObject();
+
+            input.close();
+            output.close();
+
+            logger.info("Conexão encerrada");
+
+            return response;
+        } catch (final IOException e) {
+            logger.error("Servidor de localização não encontrado");
+            return Response.error();
+        } catch (final ClassNotFoundException e) {
+            logger.error("A resposta não pôde ser interpretada", e);
+            return Response.error();
+        }
+    }
 
 }

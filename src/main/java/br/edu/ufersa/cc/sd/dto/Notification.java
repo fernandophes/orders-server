@@ -11,10 +11,9 @@ import lombok.Getter;
 @Getter
 @EqualsAndHashCode
 @AllArgsConstructor
-public class NotificationDto implements Serializable {
+public class Notification implements Serializable {
 
     private final Nature nature;
-    private final InetSocketAddress oldAddress;
-    private final InetSocketAddress newAddress;
+    private final InetSocketAddress address;
 
 }

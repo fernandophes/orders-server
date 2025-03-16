@@ -12,7 +12,6 @@ import br.edu.ufersa.cc.sd.enums.Nature;
 import br.edu.ufersa.cc.sd.enums.ResponseStatus;
 import br.edu.ufersa.cc.sd.exceptions.NotFoundException;
 import br.edu.ufersa.cc.sd.models.Order;
-import br.edu.ufersa.cc.sd.utils.Constants;
 
 public class ApplicationServer extends AbstractServer {
 
@@ -21,7 +20,7 @@ public class ApplicationServer extends AbstractServer {
     private final OrderService orderService = new OrderService();
 
     public ApplicationServer() {
-        super(LOG, Nature.APPLICATION, Constants.APPLICATION_PORT);
+        super(LOG, Nature.APPLICATION);
     }
 
     @Override
@@ -39,7 +38,7 @@ public class ApplicationServer extends AbstractServer {
             case CREATE:
                 order.setCode(null);
                 orderService.create(order);
-                return new Response<>(ResponseStatus.OK);
+                return Response.ok();
 
             case FIND:
                 try {
@@ -50,11 +49,11 @@ public class ApplicationServer extends AbstractServer {
 
             case UPDATE:
                 orderService.update(order);
-                return new Response<>(ResponseStatus.OK);
+                return Response.ok();
 
             case DELETE:
                 orderService.delete(order);
-                return new Response<>(ResponseStatus.OK);
+                return Response.ok();
 
             case COUNT:
                 return new Response<>((T) orderService.countAll());
