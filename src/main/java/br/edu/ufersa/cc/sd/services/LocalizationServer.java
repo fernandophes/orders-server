@@ -4,6 +4,7 @@ import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -97,7 +98,8 @@ public class LocalizationServer extends AbstractServer {
     }
 
     private InetSocketAddress chooseProxy() {
-        return proxiesAddresses.stream().findAny().orElse(null);
+        final var randomIndex = RANDOM.nextInt(proxiesAddresses.size() - 1);
+        return proxiesAddresses.stream().collect(Collectors.toList()).get(randomIndex);
     }
 
 }
