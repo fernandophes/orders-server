@@ -43,7 +43,7 @@ public class ProxyServer extends AbstractServer {
     @Override
     public void stop() {
         if (!detachFrom(localizationAddress)) {
-            throw new ConnectionException("Não foi possível se desvincular do servidor de localização");
+            LOG.warn("Não foi possível se desvincular do servidor de localização");
         }
         super.stop();
     }
