@@ -20,7 +20,7 @@ public class LocalizationServer extends AbstractServer {
 
     private static final Logger LOG = LoggerFactory.getLogger(LocalizationServer.class.getSimpleName());
 
-    private static Set<InetSocketAddress> proxiesAddresses = new HashSet<>();
+    private Set<InetSocketAddress> proxiesAddresses = new HashSet<>();
 
     public LocalizationServer() {
         super(LOG, Nature.LOCALIZATION);
@@ -98,7 +98,7 @@ public class LocalizationServer extends AbstractServer {
     }
 
     private InetSocketAddress chooseProxy() {
-        final var randomIndex = RANDOM.nextInt(proxiesAddresses.size() - 1);
+        final var randomIndex = RANDOM.nextInt(proxiesAddresses.size());
         return proxiesAddresses.stream().collect(Collectors.toList()).get(randomIndex);
     }
 
