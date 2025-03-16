@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.net.BindException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -26,7 +27,7 @@ import lombok.Getter;
 
 public abstract class AbstractServer implements Runnable {
 
-    private static final Random RANDOM = new Random();
+    protected static final Random RANDOM = new Random();
 
     protected final Logger logger;
 
@@ -41,6 +42,8 @@ public abstract class AbstractServer implements Runnable {
     protected boolean isAlive = true;
     protected ServerSocket serverSocket;
 
+    protected Integer triesToBind = 0;
+
     protected AbstractServer(final Logger logger, final Nature nature) {
         this.logger = logger;
         this.nature = nature;
@@ -49,17 +52,25 @@ public abstract class AbstractServer implements Runnable {
     @Override
     public void run() {
         try {
-            final var port = RANDOM.nextInt(20) + nature.getPortRange();
+            final var port = RANDOM.nextInt(Constants.RANGE_SIZE) + nature.getPortRange();
 
             serverSocket = new ServerSocket(port);
             serverSocket.setReuseAddress(true);
             address = new InetSocketAddress(Constants.getDefaultHost(), port);
             isAlive = true;
 
-            logger.info("Servidor de {} iniciado", nature);
-            logger.info("Disponível pelo endereço {}:{}", address.getHostString(), port);
+            logger.info("Servidor de {} iniciado em {}:{}", nature, address.getHostString(), port);
 
             new Thread(() -> waitForClients(serverSocket)).start();
+        } catch (final BindException e) {
+            logger.warn("Tentei nascer em uma porta ocupada, tentando em outra...");
+            triesToBind++;
+
+            if (triesToBind < Constants.RANGE_SIZE) {
+                run();
+            } else {
+                e.printStackTrace();
+            }
         } catch (final IOException e) {
             e.printStackTrace();
         }
@@ -132,19 +143,19 @@ public abstract class AbstractServer implements Runnable {
     protected abstract <T extends Serializable> Response<T> handleMessage(Request<? extends Serializable> request);
 
     protected boolean attachTo(final InetSocketAddress targetAddress) {
-            final var notification = new Notification(Nature.PROXY, address);
-            final var request = new Request<>(Operation.ATTACH, notification);
-            final var response = send(targetAddress, request);
+        final var notification = new Notification(Nature.PROXY, address);
+        final var request = new Request<>(Operation.ATTACH, notification);
+        final var response = send(targetAddress, request);
 
-            return response.getStatus() == ResponseStatus.OK;
+        return response.getStatus() == ResponseStatus.OK;
     }
 
     protected boolean detachFrom(final InetSocketAddress targetAddress) {
-            final var notification = new Notification(Nature.PROXY, address);
-            final var request = new Request<>(Operation.DETACH, notification);
-            final var response = send(targetAddress, request);
+        final var notification = new Notification(Nature.PROXY, address);
+        final var request = new Request<>(Operation.DETACH, notification);
+        final var response = send(targetAddress, request);
 
-            return response.getStatus() == ResponseStatus.OK;
+        return response.getStatus() == ResponseStatus.OK;
     }
 
     protected <T extends Serializable> Response<T> send(final InetSocketAddress targetAddress,
