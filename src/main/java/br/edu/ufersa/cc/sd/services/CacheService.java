@@ -16,9 +16,7 @@ import lombok.Setter;
 public class CacheService {
 
     @Getter
-    private static class Metadata<T> {
-        private static Integer nextPosition = 1;
-
+    private class Metadata<T> {
         @Setter
         private T item;
 
@@ -46,18 +44,19 @@ public class CacheService {
     private static final Logger LOG = LoggerFactory.getLogger(CacheService.class.getSimpleName());
 
     private static final Integer CAPACITY = 30;
-    private static final Map<Long, Metadata<Order>> CACHE = new HashMap<>(CAPACITY);
+    private final Map<Long, Metadata<Order>> cache = new HashMap<>(CAPACITY);
 
+    private Integer nextPosition = 1;
     private Integer hits = 0;
     private Integer misses = 0;
 
     public Order find(final Long code, final Supplier<Order> redirectCallback) {
         final Order order;
 
-        if (CACHE.containsKey(code)) {
+        if (cache.containsKey(code)) {
             LOG.info("Ordem de código {} encontrada no cache", code);
             hits++;
-            order = CACHE.get(code).getItemAndRegister();
+            order = cache.get(code).getItemAndRegister();
         } else {
             LOG.warn("Ordem de código {} NÃO encontrada no cache", code);
             order = tryToGetFromCallback(code, redirectCallback);
@@ -70,11 +69,11 @@ public class CacheService {
     public void update(final Order order) {
         final var code = order.getCode();
 
-        if (CACHE.containsKey(code)) {
+        if (cache.containsKey(code)) {
             // Se a ordem editada estiver em cache...
             LOG.info("Ordem de código {} encontrada no cache", code);
             hits++;
-            final var cached = CACHE.get(code);
+            final var cached = cache.get(code);
 
             // ... ela será substituída pela nova, na mesma posição em que está...
             cached.setItem(order);
@@ -99,7 +98,7 @@ public class CacheService {
             final var result = redirectCallback.get();
             addToCache(result);
             misses++;
-            return CACHE.get(code).getItemAndRegister();
+            return cache.get(code).getItemAndRegister();
         } catch (final NotFoundException e) {
             return null;
         }
@@ -109,13 +108,13 @@ public class CacheService {
         final var builder = new StringBuilder();
         builder.append("CACHE: {} hits, {} misses\n");
 
-        CACHE.values().stream()
+        cache.values().stream()
                 .sorted((a, b) -> a.getPosition().compareTo(b.getPosition()))
                 .forEachOrdered(metadata -> builder.append("[").append(metadata.getPosition()).append("ª #")
                         .append(metadata.getItem().getCode()).append(" ")
                         .append(metadata.uses).append("x] "));
 
-        for (int i = CACHE.size(); i <= CAPACITY; i++) {
+        for (int i = cache.size(); i <= CAPACITY; i++) {
             builder.append("[]");
         }
 
@@ -127,13 +126,13 @@ public class CacheService {
     private void addToCache(final Order order) {
         LOG.info("Preparando cache para receber a ordem de código {}", order.getCode());
 
-        if (CACHE.size() >= CAPACITY) {
+        if (cache.size() >= CAPACITY) {
             LOG.warn("Cache lotado");
             removeOneFromCache();
         }
 
         LOG.info("Adicionando ordem de código {} ao cache", order.getCode());
-        CACHE.put(order.getCode(), new Metadata<>(order));
+        cache.put(order.getCode(), new Metadata<>(order));
     }
 
     private void removeOneFromCache() {
@@ -144,14 +143,14 @@ public class CacheService {
     }
 
     private Order chooseByFifo() {
-        return CACHE.values().stream()
+        return cache.values().stream()
                 .min((a, b) -> a.getPosition().compareTo(b.getPosition()))
                 .orElseThrow().getItem();
     }
 
     private void removeFromCache(final Order order) {
         LOG.info("Removendo ordem de código {} do cache...", order.getCode());
-        CACHE.remove(order.getCode());
+        cache.remove(order.getCode());
         logCacheStatus();
     }
 
