@@ -129,6 +129,8 @@ public abstract class AbstractServer implements Runnable {
             output.writeObject(handleMessage(request));
             output.flush();
 
+            input.close();
+            output.close();
             client.close();
             logger.info("Cliente encerrado: {}", client.getInetAddress());
         } catch (final IOException | ClassNotFoundException e) {
