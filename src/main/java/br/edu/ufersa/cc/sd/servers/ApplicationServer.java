@@ -1,4 +1,4 @@
-package br.edu.ufersa.cc.sd.services;
+package br.edu.ufersa.cc.sd.servers;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -12,6 +12,7 @@ import br.edu.ufersa.cc.sd.enums.Nature;
 import br.edu.ufersa.cc.sd.enums.ResponseStatus;
 import br.edu.ufersa.cc.sd.exceptions.NotFoundException;
 import br.edu.ufersa.cc.sd.models.Order;
+import br.edu.ufersa.cc.sd.services.OrderService;
 
 public class ApplicationServer extends AbstractServer {
 

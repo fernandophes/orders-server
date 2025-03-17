@@ -22,13 +22,13 @@ import javax.swing.WindowConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import br.edu.ufersa.cc.sd.services.LocalizationServer;
 import br.edu.ufersa.cc.sd.services.OrderService;
-import br.edu.ufersa.cc.sd.services.ProxyServer;
 import br.edu.ufersa.cc.sd.utils.Constants;
 import br.edu.ufersa.cc.sd.enums.Nature;
-import br.edu.ufersa.cc.sd.services.AbstractServer;
-import br.edu.ufersa.cc.sd.services.ApplicationServer;
+import br.edu.ufersa.cc.sd.servers.ApplicationServer;
+import br.edu.ufersa.cc.sd.servers.LocalizationServer;
+import br.edu.ufersa.cc.sd.servers.ProxyServer;
+import br.edu.ufersa.cc.sd.servers.AbstractServer;
 
 public class Main {
 

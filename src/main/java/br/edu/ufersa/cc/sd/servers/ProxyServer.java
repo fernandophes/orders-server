@@ -1,4 +1,4 @@
-package br.edu.ufersa.cc.sd.services;
+package br.edu.ufersa.cc.sd.servers;
 
 import java.io.Serializable;
 import java.net.InetSocketAddress;
@@ -14,6 +14,7 @@ import br.edu.ufersa.cc.sd.enums.ResponseStatus;
 import br.edu.ufersa.cc.sd.exceptions.ConnectionException;
 import br.edu.ufersa.cc.sd.exceptions.NotFoundException;
 import br.edu.ufersa.cc.sd.models.Order;
+import br.edu.ufersa.cc.sd.services.CacheService;
 
 public class ProxyServer extends AbstractServer {
 

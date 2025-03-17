@@ -1,4 +1,4 @@
-package br.edu.ufersa.cc.sd.services;
+package br.edu.ufersa.cc.sd.servers;
 
 import java.io.Serializable;
 import java.net.InetSocketAddress;
