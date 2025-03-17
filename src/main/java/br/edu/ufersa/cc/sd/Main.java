@@ -54,7 +54,7 @@ public class Main {
         frame.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(final WindowEvent e) {
-                SERVERS.forEach(AbstractServer::stop);
+                SERVERS.forEach(AbstractServer::close);
             }
         });
 
@@ -127,7 +127,7 @@ public class Main {
     }
 
     private static void stopServer(final AbstractServer server) {
-        server.stop();
+        server.close();
         SERVERS.remove(server);
         refreshGrid();
     }

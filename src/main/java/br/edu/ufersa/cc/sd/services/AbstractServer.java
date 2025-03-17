@@ -1,5 +1,6 @@
 package br.edu.ufersa.cc.sd.services;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -25,7 +26,7 @@ import br.edu.ufersa.cc.sd.models.Order;
 import br.edu.ufersa.cc.sd.utils.Constants;
 import lombok.Getter;
 
-public abstract class AbstractServer implements Runnable {
+public abstract class AbstractServer implements Runnable, Closeable {
 
     protected static final Random RANDOM = new Random();
 
@@ -76,7 +77,8 @@ public abstract class AbstractServer implements Runnable {
         }
     }
 
-    public void stop() {
+    @Override
+    public void close() {
         if (serverSocket != null && !serverSocket.isClosed()) {
             try {
                 serverSocket.close();
@@ -106,17 +108,16 @@ public abstract class AbstractServer implements Runnable {
     protected void handleClient(final Socket client) {
         logger.info("Cliente conectado: {}", client.getInetAddress());
 
-        try {
-            final var output = new ObjectOutputStream(client.getOutputStream());
+        try (client;
+                final var output = new ObjectOutputStream(client.getOutputStream());
+                final var input = new ObjectInputStream(client.getInputStream());) {
             output.flush();
-            final var input = new ObjectInputStream(client.getInputStream());
 
             // Validar cliente
             if (!validateClient(client)) {
                 logger.error("Cliente não autorizado: {}", client.getInetAddress());
                 output.writeObject(new Response<>(ResponseStatus.ERROR, "Acesso não autorizado"));
                 output.flush();
-                client.close();
                 return;
             }
 
@@ -129,9 +130,6 @@ public abstract class AbstractServer implements Runnable {
             output.writeObject(handleMessage(request));
             output.flush();
 
-            input.close();
-            output.close();
-            client.close();
             logger.info("Cliente encerrado: {}", client.getInetAddress());
         } catch (final IOException | ClassNotFoundException e) {
             logger.error("Erro ao aceitar novos clientes", e);
@@ -162,10 +160,10 @@ public abstract class AbstractServer implements Runnable {
 
     protected <T extends Serializable> Response<T> send(final InetSocketAddress targetAddress,
             final Request<? extends Serializable> request) {
-        try (final var socket = new Socket(targetAddress.getHostString(), targetAddress.getPort())) {
-            final var output = new ObjectOutputStream(socket.getOutputStream());
+        try (final var socket = new Socket(targetAddress.getHostString(), targetAddress.getPort());
+                final var output = new ObjectOutputStream(socket.getOutputStream());
+                final var input = new ObjectInputStream(socket.getInputStream());) {
             output.flush();
-            final var input = new ObjectInputStream(socket.getInputStream());
 
             logger.info("Enviando requisição...");
             output.writeObject(request);
@@ -175,11 +173,7 @@ public abstract class AbstractServer implements Runnable {
             @SuppressWarnings("unchecked")
             final var response = (Response<T>) input.readObject();
 
-            input.close();
-            output.close();
-
             logger.info("Conexão encerrada");
-
             return response;
         } catch (final IOException e) {
             logger.error("Servidor de localização não encontrado");

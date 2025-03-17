@@ -35,17 +35,17 @@ public class ProxyServer extends AbstractServer {
         super.run();
 
         if (!attachTo(localizationAddress)) {
-            stop();
+            close();
             throw new ConnectionException("Não foi possível se vincular ao servidor de localização");
         }
     }
 
     @Override
-    public void stop() {
+    public void close() {
         if (!detachFrom(localizationAddress)) {
             LOG.warn("Não foi possível se desvincular do servidor de localização");
         }
-        super.stop();
+        super.close();
     }
 
     private Response<Order> getFromCache(final Request<Order> request) {
