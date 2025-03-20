@@ -3,6 +3,7 @@ package br.edu.ufersa.cc.sd.servers;
 import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -22,6 +23,7 @@ public class LocalizationServer extends AbstractServer {
     private static final Logger LOG = LoggerFactory.getLogger(LocalizationServer.class.getSimpleName());
 
     private Set<Combo> proxiesAddresses = new HashSet<>();
+    private Combo proxyLeader;
 
     public LocalizationServer() {
         super(LOG, Nature.LOCALIZATION);
@@ -67,11 +69,18 @@ public class LocalizationServer extends AbstractServer {
 
                         // Enviar o já existente para o novo
                         send(newProxy.getServerSocketAddress(), new Request<>(Operation.ATTACH,
-                                new Notification(Nature.PROXY, combo.getServerSocketAddress(), combo.getRemoteAddress())));
+                                new Notification(Nature.PROXY, combo.getServerSocketAddress(),
+                                        combo.getRemoteAddress())));
                     }
                 });
+
+        // Define primeiro proxy registrado como líder
+        if (proxyLeader == null) {
+            proxyLeader = newProxy;
+        }
     }
 
+    @SuppressWarnings("unchecked")
     private <T extends Serializable> Response<T> attachProxy(final Request<? extends Serializable> request) {
         final var item = request.getItem();
         if (item instanceof Notification && ((Notification) item).getNature().equals(Nature.PROXY)) {
@@ -81,7 +90,7 @@ public class LocalizationServer extends AbstractServer {
 
             attachProxy(newProxyServerSocketAddress, newProxyRemoteAddress);
 
-            return Response.ok();
+            return new Response<>((T) proxyLeader);
         } else {
             return Response.error();
         }
@@ -104,8 +113,20 @@ public class LocalizationServer extends AbstractServer {
                                                 oldProxyRemoteAddress)));
                     }
                 });
+
+        // Caso o proxy removido seja o líder...
+        if (oldProxy.equals(proxyLeader)) {
+            if (proxiesAddresses.isEmpty()) {
+                // ... anula o líder, caso não tenha mais nenhum
+                proxyLeader = null;
+            } else {
+                // ou pega o próximo como líder
+                proxyLeader = List.copyOf(proxiesAddresses).get(0);
+            }
+        }
     }
 
+    @SuppressWarnings("unchecked")
     private <T extends Serializable> Response<T> detachProxy(final Request<? extends Serializable> request) {
         final var item = request.getItem();
         if (item instanceof Notification && ((Notification) item).getNature().equals(Nature.PROXY)) {
@@ -114,7 +135,7 @@ public class LocalizationServer extends AbstractServer {
             final var oldProxyRemoteAddress = notification.getRemoteAddress();
 
             detachProxy(oldProxyServerSocketAddress, oldProxyRemoteAddress);
-            return Response.ok();
+            return new Response<>((T) proxyLeader);
         } else {
             return Response.error();
         }

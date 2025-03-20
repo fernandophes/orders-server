@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import br.edu.ufersa.cc.sd.contracts.RemoteProxy;
+import br.edu.ufersa.cc.sd.dto.Combo;
 import br.edu.ufersa.cc.sd.dto.Notification;
 import br.edu.ufersa.cc.sd.dto.Request;
 import br.edu.ufersa.cc.sd.dto.Response;
@@ -22,6 +23,7 @@ import br.edu.ufersa.cc.sd.exceptions.NotFoundException;
 import br.edu.ufersa.cc.sd.models.Order;
 import br.edu.ufersa.cc.sd.services.CacheService;
 import br.edu.ufersa.cc.sd.utils.JsonUtils;
+import lombok.Getter;
 
 public class ProxyServer extends AbstractServer implements RemoteProxy {
 
@@ -29,6 +31,8 @@ public class ProxyServer extends AbstractServer implements RemoteProxy {
 
     private final CacheService cacheService;
 
+    @Getter
+    private Combo leader;
     private final InetSocketAddress localizationAddress;
     private final InetSocketAddress applicationAddress;
 
@@ -51,7 +55,10 @@ public class ProxyServer extends AbstractServer implements RemoteProxy {
 
         super.run();
 
-        if (!attachTo(localizationAddress)) {
+        final var attachment = attachTo(localizationAddress);
+        if (attachment.getStatus() == ResponseStatus.OK) {
+            leader = (Combo) attachment.getItem();
+        } else {
             close();
             throw new ConnectionException("Não foi possível se vincular ao servidor de localização");
         }
