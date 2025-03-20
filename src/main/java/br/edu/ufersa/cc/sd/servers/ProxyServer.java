@@ -24,14 +24,18 @@ import br.edu.ufersa.cc.sd.models.Order;
 import br.edu.ufersa.cc.sd.services.CacheService;
 import br.edu.ufersa.cc.sd.utils.JsonUtils;
 import lombok.Getter;
+import lombok.Setter;
 
 public class ProxyServer extends AbstractServer implements RemoteProxy {
+
+    private static final String PROXY = "Proxy";
 
     private static final Logger LOG = LoggerFactory.getLogger(ProxyServer.class.getSimpleName());
 
     private final CacheService cacheService;
 
     @Getter
+    @Setter
     private Combo leader;
     private final InetSocketAddress localizationAddress;
     private final InetSocketAddress applicationAddress;
@@ -54,6 +58,7 @@ public class ProxyServer extends AbstractServer implements RemoteProxy {
         }
 
         super.run();
+        cacheService.setIdAddress(serverSocketAddress);
 
         final var attachment = attachTo(localizationAddress);
         if (attachment.getStatus() == ResponseStatus.OK) {
@@ -66,10 +71,32 @@ public class ProxyServer extends AbstractServer implements RemoteProxy {
 
     @Override
     public void close() {
-        if (!detachFrom(localizationAddress)) {
+        final var detachment = detachFrom(localizationAddress);
+        if (detachment.getStatus() == ResponseStatus.OK) {
+            for (final var replicaAddress : replicasAddresses) {
+                try {
+                    final var registry = LocateRegistry.getRegistry(replicaAddress.getHostString(),
+                            replicaAddress.getPort());
+                    final var replica = (RemoteProxy) registry.lookup(PROXY);
+
+                    if (isLeader()) {
+                        // Atualizar líder
+                        replica.setLeader((Combo) detachment.getItem());
+                    }
+                } catch (final RemoteException | NotBoundException e) {
+                    e.printStackTrace();
+                }
+
+            }
+        } else {
             LOG.warn("Não foi possível se desvincular do servidor de localização");
         }
         super.close();
+    }
+
+    @Override
+    public boolean isLeader() {
+        return leader.getRemoteAddress().equals(remoteAddress);
     }
 
     public Order get(final Long code) {
@@ -87,7 +114,7 @@ public class ProxyServer extends AbstractServer implements RemoteProxy {
 
                             final var registry = LocateRegistry.getRegistry(replicaAddress.getHostString(),
                                     replicaAddress.getPort());
-                            final var replica = (RemoteProxy) registry.lookup("Proxy");
+                            final var replica = (RemoteProxy) registry.lookup(PROXY);
                             final var result = replica.get(request.getItem().getCode());
 
                             // Se encontrar a ordem, retorná-la
@@ -112,24 +139,87 @@ public class ProxyServer extends AbstractServer implements RemoteProxy {
                 });
     }
 
-    private Response<Order> updateIncludingCache(final Request<Order> request) {
-        // Editar na base de dados
-        final Response<Order> response = redirectRequestToServer(request);
-
-        // Atualizar no cache
-        cacheService.update(request.getItem());
-
-        return response;
+    @Override
+    public void updateInCache(final Order order) {
+        cacheService.update(order);
     }
 
-    private Response<Order> deleteIncludingCache(final Request<Order> request) {
-        // Remover na base de dados
-        final Response<Order> response = redirectRequestToServer(request);
+    public Response<Order> updateIncludingCache(final Request<Order> request) {
+        if (isLeader()) {
+            // Editar na base de dados
+            final Response<Order> response = redirectRequestToServer(request);
 
-        // Remover no cache
-        cacheService.delete(request.getItem());
+            // Atualizar no cache
+            updateInCache(request.getItem());
 
-        return response;
+            // Atualizar réplicas
+            for (final var replicaAddress : replicasAddresses) {
+                try {
+                    final var registry = LocateRegistry.getRegistry(replicaAddress.getHostString(),
+                            replicaAddress.getPort());
+                    final var replica = (RemoteProxy) registry.lookup(PROXY);
+
+                    replica.updateInCache(request.getItem());
+                } catch (final RemoteException | NotBoundException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            return response;
+        } else {
+            try {
+                final var registry = LocateRegistry.getRegistry(leader.getRemoteAddress().getHostString(),
+                        leader.getRemoteAddress().getPort());
+                final var leaderStub = (RemoteProxy) registry.lookup(PROXY);
+
+                return leaderStub.updateIncludingCache(request);
+            } catch (final RemoteException | NotBoundException e) {
+                e.printStackTrace();
+                return null;
+            }
+        }
+    }
+
+    @Override
+    public void deleteInCache(final Order order) {
+        cacheService.delete(order);
+    }
+
+    @Override
+    public Response<Order> deleteIncludingCache(final Request<Order> request) {
+        if (isLeader()) {
+            // Remover na base de dados
+            final Response<Order> response = redirectRequestToServer(request);
+
+            // Remover no cache
+            cacheService.delete(request.getItem());
+
+            // Atualizar réplicas deletando delas
+            for (final var replicaAddress : replicasAddresses) {
+                try {
+                    final var registry = LocateRegistry.getRegistry(replicaAddress.getHostString(),
+                            replicaAddress.getPort());
+                    final var replica = (RemoteProxy) registry.lookup(PROXY);
+
+                    replica.deleteInCache(request.getItem());
+                } catch (final RemoteException | NotBoundException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            return response;
+        } else {
+            try {
+                final var registry = LocateRegistry.getRegistry(leader.getRemoteAddress().getHostString(),
+                        leader.getRemoteAddress().getPort());
+                final var leaderStub = (RemoteProxy) registry.lookup(PROXY);
+
+                return leaderStub.deleteIncludingCache(request);
+            } catch (final RemoteException | NotBoundException e) {
+                e.printStackTrace();
+                return null;
+            }
+        }
     }
 
     private <O extends Serializable> Response<O> redirectRequestToServer(final Request<Order> request) {

@@ -36,7 +36,11 @@ public interface JsonUtils {
     }
 
     public static String write(final InetSocketAddress address) {
-        return address.getHostString() + ":" + address.getPort();
+        if (address != null) {
+            return address.getHostString() + ":" + address.getPort();
+        } else {
+            return "---";
+        }
     }
 
 }

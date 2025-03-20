@@ -192,12 +192,10 @@ public abstract class AbstractServer implements Runnable, Closeable {
         return send(targetAddress, request);
     }
 
-    protected boolean detachFrom(final InetSocketAddress targetAddress) {
+    protected Response<Serializable> detachFrom(final InetSocketAddress targetAddress) {
         final var notification = new Notification(Nature.PROXY, serverSocketAddress, remoteAddress);
         final var request = new Request<>(Operation.DETACH, notification);
-        final var response = send(targetAddress, request);
-
-        return response.getStatus() == ResponseStatus.OK;
+        return send(targetAddress, request);
     }
 
     protected <T extends Serializable> Response<T> send(final InetSocketAddress targetAddress,

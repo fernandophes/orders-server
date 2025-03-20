@@ -1,5 +1,6 @@
 package br.edu.ufersa.cc.sd.services;
 
+import java.net.InetSocketAddress;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.time.LocalDateTime;
@@ -13,6 +14,7 @@ import org.slf4j.LoggerFactory;
 
 import br.edu.ufersa.cc.sd.exceptions.NotFoundException;
 import br.edu.ufersa.cc.sd.models.Order;
+import br.edu.ufersa.cc.sd.utils.JsonUtils;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
@@ -50,6 +52,10 @@ public class CacheService extends UnicastRemoteObject {
 
     private static final Integer CAPACITY = 30;
     private final Map<Long, Metadata<Order>> cache = new HashMap<>(CAPACITY);
+
+    @Getter
+    @Setter
+    private InetSocketAddress idAddress;
 
     private Integer nextPosition = 1;
     private Integer hits = 0;
@@ -123,7 +129,7 @@ public class CacheService extends UnicastRemoteObject {
 
     private void logCacheStatus() {
         final var builder = new StringBuilder();
-        builder.append("CACHE: {} hits, {} misses\n");
+        builder.append("CACHE {} = {} hits, {} misses\n");
 
         cache.values().stream()
                 .sorted((a, b) -> a.getPosition().compareTo(b.getPosition()))
@@ -137,7 +143,8 @@ public class CacheService extends UnicastRemoteObject {
 
         final var prompt = builder.toString();
 
-        LOG.info(prompt, hits, misses);
+        final var address = JsonUtils.write(idAddress);
+        LOG.info(prompt, address, hits, misses);
     }
 
     private void addToCache(final Order order) {
