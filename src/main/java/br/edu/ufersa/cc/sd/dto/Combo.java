@@ -3,7 +3,6 @@ package br.edu.ufersa.cc.sd.dto;
 import java.io.Serializable;
 import java.net.InetSocketAddress;
 
-import br.edu.ufersa.cc.sd.enums.Nature;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -11,9 +10,8 @@ import lombok.Getter;
 @Getter
 @EqualsAndHashCode
 @AllArgsConstructor
-public class Notification implements Serializable {
+public class Combo implements Serializable {
 
-    private final Nature nature;
     private final InetSocketAddress serverSocketAddress;
     private final InetSocketAddress remoteAddress;
 

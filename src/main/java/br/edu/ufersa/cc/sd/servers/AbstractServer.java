@@ -10,12 +10,17 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.rmi.AlreadyBoundException;
+import java.rmi.Remote;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.server.UnicastRemoteObject;
 import java.util.HashSet;
 import java.util.Random;
 import java.util.Set;
 
 import org.slf4j.Logger;
 
+import br.edu.ufersa.cc.sd.contracts.RemoteProxy;
 import br.edu.ufersa.cc.sd.dto.Notification;
 import br.edu.ufersa.cc.sd.dto.Request;
 import br.edu.ufersa.cc.sd.dto.Response;
@@ -37,13 +42,14 @@ public abstract class AbstractServer implements Runnable, Closeable {
     protected final Set<InetSocketAddress> replicasAddresses = new HashSet<>();
 
     @Getter
-    protected InetSocketAddress address;
+    protected InetSocketAddress serverSocketAddress;
+
+    @Getter
+    protected InetSocketAddress remoteAddress;
 
     @Getter
     protected boolean isAlive = true;
     protected ServerSocket serverSocket;
-
-    protected Integer triesToBind = 0;
 
     protected AbstractServer(final Logger logger, final Nature nature) {
         this.logger = logger;
@@ -53,28 +59,66 @@ public abstract class AbstractServer implements Runnable, Closeable {
     @Override
     public void run() {
         try {
-            final var port = RANDOM.nextInt(Constants.RANGE_SIZE) + nature.getPortRange();
-
-            serverSocket = new ServerSocket(port);
-            serverSocket.setReuseAddress(true);
-            address = new InetSocketAddress(Constants.getDefaultHost(), port);
-            isAlive = true;
-
-            logger.info("Servidor de {} iniciado em {}:{}", nature, address.getHostString(), port);
+            getSocketAddress();
 
             new Thread(() -> waitForClients(serverSocket)).start();
-        } catch (final BindException e) {
-            logger.warn("Tentei nascer em uma porta ocupada, tentando em outra...");
-            triesToBind++;
-
-            if (triesToBind < Constants.RANGE_SIZE) {
-                run();
-            } else {
-                e.printStackTrace();
-            }
         } catch (final IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private void getSocketAddress() throws IOException {
+        var triesToBind = 0;
+        var mustRetry = true;
+
+        do {
+            try {
+                final var port = RANDOM.nextInt(Constants.RANGE_SIZE) + nature.getSocketPortRange();
+
+                serverSocket = new ServerSocket(port);
+                serverSocket.setReuseAddress(true);
+                serverSocketAddress = new InetSocketAddress(Constants.getDefaultHost(), port);
+                mustRetry = false;
+
+                logger.info("Servidor socket de {} iniciado em {}:{}", nature, serverSocketAddress.getHostString(),
+                        serverSocketAddress.getPort());
+            } catch (final BindException e) {
+                logger.warn("Tentei nascer em uma porta ocupada, tentando em outra...");
+                triesToBind++;
+
+                if (triesToBind >= Constants.RANGE_SIZE * 2) {
+                    throw e;
+                }
+            }
+        } while (mustRetry);
+    }
+
+    protected void getRemoteAddress(final Remote remote) throws IOException, AlreadyBoundException {
+        var triesToBind = 0;
+        var mustRetry = true;
+
+        do {
+            try {
+                final var port = RANDOM.nextInt(Constants.RANGE_SIZE) + nature.getRemotePortRange();
+
+                final var skeleton = (RemoteProxy) UnicastRemoteObject.exportObject(remote, 0);
+                final var registry = LocateRegistry.createRegistry(port);
+                registry.bind("Proxy", skeleton);
+
+                remoteAddress = new InetSocketAddress(Constants.getDefaultHost(), port);
+                mustRetry = false;
+
+                logger.info("Servidor remoto de {} iniciado em {}:{}", nature, remoteAddress.getHostString(),
+                        remoteAddress.getPort());
+            } catch (final AlreadyBoundException e) {
+                logger.warn("Tentei nascer em uma porta ocupada, tentando em outra...");
+                triesToBind++;
+
+                if (triesToBind >= Constants.RANGE_SIZE * 2) {
+                    throw e;
+                }
+            }
+        } while (mustRetry);
     }
 
     @Override
@@ -143,7 +187,7 @@ public abstract class AbstractServer implements Runnable, Closeable {
     protected abstract <T extends Serializable> Response<T> handleMessage(Request<? extends Serializable> request);
 
     protected boolean attachTo(final InetSocketAddress targetAddress) {
-        final var notification = new Notification(Nature.PROXY, address);
+        final var notification = new Notification(Nature.PROXY, serverSocketAddress, remoteAddress);
         final var request = new Request<>(Operation.ATTACH, notification);
         final var response = send(targetAddress, request);
 
@@ -151,7 +195,7 @@ public abstract class AbstractServer implements Runnable, Closeable {
     }
 
     protected boolean detachFrom(final InetSocketAddress targetAddress) {
-        final var notification = new Notification(Nature.PROXY, address);
+        final var notification = new Notification(Nature.PROXY, serverSocketAddress, remoteAddress);
         final var request = new Request<>(Operation.DETACH, notification);
         final var response = send(targetAddress, request);
 

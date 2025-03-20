@@ -6,6 +6,7 @@ import java.awt.GridLayout;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.net.InetSocketAddress;
+import java.rmi.RemoteException;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
@@ -84,7 +85,14 @@ public class Main {
         final var replicaApplicationButton = new JButton("Aplicação");
 
         replicaLocalizationButton.addActionListener(e -> addAndStartServer(new LocalizationServer()));
-        replicaProxyButton.addActionListener(e -> addAndStartServer(createProxyServer()));
+        replicaProxyButton.addActionListener(e -> {
+            try {
+                addAndStartServer(createProxyServer());
+            } catch (final RemoteException e1) {
+                JOptionPane.showMessageDialog(SERVERS_GRID, "Não foi possível iniciar o RMI do Proxy");
+                e1.printStackTrace();
+            }
+        });
         replicaApplicationButton.addActionListener(e -> addAndStartServer(new ApplicationServer()));
 
         replicaGrid.add(replicaLocalizationButton);
@@ -115,7 +123,7 @@ public class Main {
     private static void addServerToGrid(final AbstractServer server, final String labelText) {
         final var label = new JLabel(labelText, SwingConstants.CENTER);
 
-        final var addressLabel = new JLabel(on(server.getAddress()), SwingConstants.CENTER);
+        final var addressLabel = new JLabel(on(server.getServerSocketAddress()), SwingConstants.CENTER);
         addressLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         final var button = new JButton("Desligar");
@@ -136,7 +144,7 @@ public class Main {
         return "<html><center>Disponível em " + address.getHostString() + ":" + address.getPort() + "</center></html>";
     }
 
-    private static ProxyServer createProxyServer() {
+    private static ProxyServer createProxyServer() throws RemoteException {
         final var localizationAddress = askForAddress(Nature.LOCALIZATION, "Conectar ao servidor de localização");
         final var applicationAddress = askForAddress(Nature.APPLICATION, "Conectar ao servidor de aplicação");
 
@@ -146,7 +154,7 @@ public class Main {
     private static InetSocketAddress askForAddress(final Nature nature, final String message) {
         final var localizationServer = SERVERS.stream()
                 .dropWhile(server -> server.getNature() != nature)
-                .map(AbstractServer::getAddress)
+                .map(AbstractServer::getServerSocketAddress)
                 .findFirst().orElse(new InetSocketAddress(Constants.getDefaultHost(), 0000));
         final var placeholder = localizationServer.getHostString() + ":" + localizationServer.getPort();
         final var optionPane = JOptionPane.showInputDialog(message, placeholder);

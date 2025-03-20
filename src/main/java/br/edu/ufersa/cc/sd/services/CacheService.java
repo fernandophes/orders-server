@@ -1,8 +1,11 @@
 package br.edu.ufersa.cc.sd.services;
 
+import java.rmi.RemoteException;
+import java.rmi.server.UnicastRemoteObject;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 import org.slf4j.Logger;
@@ -10,10 +13,12 @@ import org.slf4j.LoggerFactory;
 
 import br.edu.ufersa.cc.sd.exceptions.NotFoundException;
 import br.edu.ufersa.cc.sd.models.Order;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 
-public class CacheService {
+@EqualsAndHashCode(callSuper = true)
+public class CacheService extends UnicastRemoteObject {
 
     @Getter
     private class Metadata<T> {
@@ -50,7 +55,19 @@ public class CacheService {
     private Integer hits = 0;
     private Integer misses = 0;
 
-    public Order find(final Long code, final Supplier<Order> redirectCallback) {
+    public CacheService() throws RemoteException {
+        super();
+    }
+
+    public Optional<Order> get(Long code) {
+        if (cache.containsKey(code)) {
+            return Optional.of(cache.get(code).getItemAndRegister());
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    public Order getOrFind(final Long code, final Supplier<Order> redirectCallback) {
         final Order order;
 
         if (cache.containsKey(code)) {

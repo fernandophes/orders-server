@@ -1,5 +1,6 @@
 package br.edu.ufersa.cc.sd.utils;
 
+import java.net.InetSocketAddress;
 import java.time.format.DateTimeFormatter;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -32,6 +33,10 @@ public interface JsonUtils {
             e.printStackTrace();
             return null;
         }
+    }
+
+    public static String write(final InetSocketAddress address) {
+        return address.getHostString() + ":" + address.getPort();
     }
 
 }
