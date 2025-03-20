@@ -1,5 +1,6 @@
 package br.edu.ufersa.cc.sd.contracts;
 
+import java.net.InetSocketAddress;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 
@@ -25,5 +26,7 @@ public interface RemoteProxy extends Remote {
     public Response<Order> deleteIncludingCache(final Request<Order> request) throws RemoteException;
 
     public void deleteInCache(final Order order) throws RemoteException;
+
+    public RemoteProxy setApplicationAddress(final InetSocketAddress address) throws RemoteException;
 
 }

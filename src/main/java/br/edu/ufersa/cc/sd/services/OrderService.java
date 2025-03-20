@@ -1,5 +1,6 @@
 package br.edu.ufersa.cc.sd.services;
 
+import java.net.InetSocketAddress;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -18,15 +19,20 @@ public class OrderService {
 
     private static final Logger LOG = LoggerFactory.getLogger(OrderService.class.getSimpleName());
 
-    private final OrderRepository orderRepository = new OrderRepository();
+    private OrderRepository orderRepository;
 
-    public static void initialize() throws SQLException {
+    public void initialize(final InetSocketAddress address) throws SQLException {
+        var tableName = address.getHostString() + "_" + address.getPort();
+        tableName = "orders_" + tableName.replaceAll("\\D", "_");
+
+        orderRepository = new OrderRepository(tableName);
+
         try (final var statement = OrderRepository.getConnection().createStatement()) {
             statement.executeUpdate(
-                    "create table orders (code BIGINT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(255), description VARCHAR(255), created_at TIMESTAMP, done_at TIMESTAMP)");
-            LOG.info("Tabela criada");
+                    "create table " + tableName
+                            + " (code BIGINT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(255), description VARCHAR(255), created_at TIMESTAMP, done_at TIMESTAMP)");
+            LOG.info("Criada tabela {}", tableName);
 
-            final var service = new OrderService();
             Stream.iterate(1, i -> i + 1)
                     .limit(100)
                     .forEach(i -> {
@@ -35,7 +41,7 @@ public class OrderService {
                                 .setDescription("Descrição da ordem nº " + i)
                                 .setCreatedAt(LocalDateTime.now());
 
-                        service.create(order);
+                        create(order);
                     });
         } catch (SQLException e) {
             throw new SQLException("Erro ao inicializar banco de dados", e);

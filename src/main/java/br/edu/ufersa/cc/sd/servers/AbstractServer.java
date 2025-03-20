@@ -20,6 +20,7 @@ import java.util.Set;
 
 import org.slf4j.Logger;
 
+import br.edu.ufersa.cc.sd.contracts.RemoteApplication;
 import br.edu.ufersa.cc.sd.contracts.RemoteProxy;
 import br.edu.ufersa.cc.sd.dto.Notification;
 import br.edu.ufersa.cc.sd.dto.Request;
@@ -100,10 +101,22 @@ public abstract class AbstractServer implements Runnable, Closeable {
         do {
             try {
                 final var port = RANDOM.nextInt(Constants.RANGE_SIZE) + nature.getRemotePortRange();
-
-                final var skeleton = (RemoteProxy) UnicastRemoteObject.exportObject(remote, 0);
                 final var registry = LocateRegistry.createRegistry(port);
-                registry.bind("Proxy", skeleton);
+
+                switch (nature) {
+                    case PROXY:
+                        final var skeletonProxy = (RemoteProxy) UnicastRemoteObject.exportObject(remote, 0);
+                        registry.bind(nature.getName(), skeletonProxy);
+                        break;
+
+                    case APPLICATION:
+                        final var skeletonApp = (RemoteApplication) UnicastRemoteObject.exportObject(remote, 0);
+                        registry.bind(nature.getName(), skeletonApp);
+                        break;
+
+                    default:
+                        throw new RuntimeException("Skeleton RMI não existe para esta natureza.");
+                }
 
                 remoteAddress = new InetSocketAddress(Constants.getDefaultHost(), port);
                 mustRetry = false;

@@ -7,7 +7,6 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.net.InetSocketAddress;
 import java.rmi.RemoteException;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -20,29 +19,20 @@ import javax.swing.JPanel;
 import javax.swing.SwingConstants;
 import javax.swing.WindowConstants;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import br.edu.ufersa.cc.sd.services.OrderService;
-import br.edu.ufersa.cc.sd.utils.Constants;
 import br.edu.ufersa.cc.sd.enums.Nature;
+import br.edu.ufersa.cc.sd.servers.AbstractServer;
 import br.edu.ufersa.cc.sd.servers.ApplicationServer;
 import br.edu.ufersa.cc.sd.servers.LocalizationServer;
 import br.edu.ufersa.cc.sd.servers.ProxyServer;
-import br.edu.ufersa.cc.sd.servers.AbstractServer;
+import br.edu.ufersa.cc.sd.utils.Constants;
 
 public class Main {
-
-    private static final Logger LOG = LoggerFactory.getLogger(Main.class.getSimpleName());
 
     private static JPanel box = new JPanel();
     private static final JPanel SERVERS_GRID = new JPanel();
     private static final List<AbstractServer> SERVERS = new ArrayList<>();
 
-    public static void main(final String[] args) throws SQLException {
-        LOG.info("Inicializando banco de dados...");
-        OrderService.initialize();
-
+    public static void main(final String[] args) {
         openWindow();
     }
 
@@ -93,7 +83,7 @@ public class Main {
                 e1.printStackTrace();
             }
         });
-        replicaApplicationButton.addActionListener(e -> addAndStartServer(new ApplicationServer()));
+        replicaApplicationButton.addActionListener(e -> addAndStartServer(createApplicationServer()));
 
         replicaGrid.add(replicaLocalizationButton);
         replicaGrid.add(replicaProxyButton);
@@ -115,15 +105,18 @@ public class Main {
     }
 
     private static void addAndStartServer(final AbstractServer server) {
-        SERVERS.add(server);
-        server.run();
-        refreshGrid();
+        if (server != null) {
+            SERVERS.add(server);
+            server.run();
+            refreshGrid();
+        }
     }
 
     private static void addServerToGrid(final AbstractServer server, final String labelText) {
         final var label = new JLabel(labelText, SwingConstants.CENTER);
 
-        final var addressLabel = new JLabel(on(server.getServerSocketAddress()), SwingConstants.CENTER);
+        final var addressLabel = new JLabel(on(server.getServerSocketAddress(), server.getRemoteAddress()),
+                SwingConstants.CENTER);
         addressLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         final var button = new JButton("Desligar");
@@ -140,8 +133,15 @@ public class Main {
         refreshGrid();
     }
 
-    private static String on(final InetSocketAddress address) {
-        return "<html><center>Disponível em " + address.getHostString() + ":" + address.getPort() + "</center></html>";
+    private static String on(final InetSocketAddress serverSocketAddress, final InetSocketAddress remoteAddress) {
+        var rmiAddr = remoteAddress;
+        if (remoteAddress == null) {
+            rmiAddr = new InetSocketAddress("0", 0);
+        }
+        return "<html><center>ServerSocket em " + serverSocketAddress.getHostString() + ":"
+                + serverSocketAddress.getPort() + "<br>RMI em "
+                + rmiAddr.getHostString() + ":" + rmiAddr.getPort()
+                + "</center></html>";
     }
 
     private static ProxyServer createProxyServer() throws RemoteException {
@@ -151,18 +151,48 @@ public class Main {
         return new ProxyServer(localizationAddress, applicationAddress);
     }
 
-    private static InetSocketAddress askForAddress(final Nature nature, final String message) {
-        final var localizationServer = SERVERS.stream()
-                .dropWhile(server -> server.getNature() != nature)
-                .map(AbstractServer::getServerSocketAddress)
-                .findFirst().orElse(new InetSocketAddress(Constants.getDefaultHost(), 0000));
-        final var placeholder = localizationServer.getHostString() + ":" + localizationServer.getPort();
+    private static ApplicationServer createApplicationServer() {
+        final var isBackup = JOptionPane.showConfirmDialog(SERVERS_GRID, "Este servidor é de backup?");
+
+        switch (isBackup) {
+            case JOptionPane.YES_OPTION:
+                final var primaryAddress = askForAddress(Nature.APPLICATION,
+                        "Conectar ao servidor de aplicação principal", true);
+                return new ApplicationServer(primaryAddress);
+
+            case JOptionPane.NO_OPTION:
+                return new ApplicationServer(null);
+
+            default:
+                return null;
+        }
+    }
+
+    private static InetSocketAddress askForAddress(final Nature nature, final String message, final boolean isRemote) {
+        final InetSocketAddress suggestion;
+        if (isRemote) {
+            suggestion = SERVERS.stream()
+                    .dropWhile(server -> server.getNature() != nature)
+                    .map(AbstractServer::getRemoteAddress)
+                    .findFirst().orElse(new InetSocketAddress(Constants.getDefaultHost(), 0000));
+        } else {
+            suggestion = SERVERS.stream()
+                    .dropWhile(server -> server.getNature() != nature)
+                    .map(AbstractServer::getServerSocketAddress)
+                    .findFirst().orElse(new InetSocketAddress(Constants.getDefaultHost(), 0000));
+        }
+
+        final var placeholder = suggestion.getHostString() + ":" + suggestion.getPort();
         final var optionPane = JOptionPane.showInputDialog(message, placeholder);
 
         final var divider = optionPane.indexOf(":");
         final var host = optionPane.substring(0, divider);
         final var port = Integer.parseInt(optionPane.substring(divider + 1));
         return new InetSocketAddress(host, port);
+    }
+
+    private static InetSocketAddress askForAddress(final Nature nature, final String message) {
+        return askForAddress(nature, message, false);
     }
 
 }

@@ -17,6 +17,7 @@ import br.edu.ufersa.cc.sd.dto.Notification;
 import br.edu.ufersa.cc.sd.dto.Request;
 import br.edu.ufersa.cc.sd.dto.Response;
 import br.edu.ufersa.cc.sd.enums.Nature;
+import br.edu.ufersa.cc.sd.enums.Operation;
 import br.edu.ufersa.cc.sd.enums.ResponseStatus;
 import br.edu.ufersa.cc.sd.exceptions.ConnectionException;
 import br.edu.ufersa.cc.sd.exceptions.NotFoundException;
@@ -28,7 +29,7 @@ import lombok.Setter;
 
 public class ProxyServer extends AbstractServer implements RemoteProxy {
 
-    private static final String PROXY = "Proxy";
+    private static final String PROXY = Nature.PROXY.getName();
 
     private static final Logger LOG = LoggerFactory.getLogger(ProxyServer.class.getSimpleName());
 
@@ -38,7 +39,9 @@ public class ProxyServer extends AbstractServer implements RemoteProxy {
     @Setter
     private Combo leader;
     private final InetSocketAddress localizationAddress;
-    private final InetSocketAddress applicationAddress;
+
+    @Setter
+    private InetSocketAddress applicationAddress;
 
     public ProxyServer(final InetSocketAddress localizationAddress, final InetSocketAddress applicationAddress)
             throws RemoteException {
@@ -60,6 +63,7 @@ public class ProxyServer extends AbstractServer implements RemoteProxy {
         super.run();
         cacheService.setIdAddress(serverSocketAddress);
 
+        // Notificar servidor de localização
         final var attachment = attachTo(localizationAddress);
         if (attachment.getStatus() == ResponseStatus.OK) {
             leader = (Combo) attachment.getItem();
@@ -67,10 +71,15 @@ public class ProxyServer extends AbstractServer implements RemoteProxy {
             close();
             throw new ConnectionException("Não foi possível se vincular ao servidor de localização");
         }
+
+        // Notificar servidor de aplicação
+        send(applicationAddress,
+                new Request<>(Operation.ATTACH, new Notification(nature, serverSocketAddress, remoteAddress)));
     }
 
     @Override
     public void close() {
+        // Notificar servidor de localização
         final var detachment = detachFrom(localizationAddress);
         if (detachment.getStatus() == ResponseStatus.OK) {
             for (final var replicaAddress : replicasAddresses) {
@@ -91,6 +100,10 @@ public class ProxyServer extends AbstractServer implements RemoteProxy {
         } else {
             LOG.warn("Não foi possível se desvincular do servidor de localização");
         }
+
+        // Notificar servidor de aplicação
+        send(applicationAddress,
+                new Request<>(Operation.DETACH, new Notification(nature, serverSocketAddress, remoteAddress)));
         super.close();
     }
 

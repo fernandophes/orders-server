@@ -20,7 +20,7 @@ public class OrderRepository {
     private static final String URL = "jdbc:h2:mem:db1;DB_CLOSE_DELAY=-1";
     private static final String USER = "sa";
     private static final String PASSWORD = "";
-    private static final String TABLE = "orders";
+    private final String tableName;
 
     // Configurar acesso ao Banco de Dados
     private static Connection connection = null;
@@ -49,7 +49,8 @@ public class OrderRepository {
         try (final var statement = getConnection().createStatement()) {
             final var resultSet = statement
                     .executeQuery(
-                            "select code, name, description, created_at, done_at from orders order by created_at desc, code desc");
+                            "select code, name, description, created_at, done_at from " + tableName
+                                    + " order by created_at desc, code desc");
 
             final var result = new ArrayList<Order>();
             while (resultSet.next()) {
@@ -73,7 +74,7 @@ public class OrderRepository {
     }
 
     public Order findByCode(final Long code) throws NotFoundException {
-        final var sql = "select code, name, description, created_at, done_at from orders where code = ?";
+        final var sql = "select code, name, description, created_at, done_at from " + tableName + " where code = ?";
         try (final var statement = getConnection().prepareStatement(sql)) {
             statement.setLong(1, code);
             final var resultSet = statement.executeQuery();
@@ -97,7 +98,7 @@ public class OrderRepository {
     }
 
     public void create(final Order order) {
-        final var sql = "insert into " + TABLE + " (name, description, created_at) values (?, ?, ?)";
+        final var sql = "insert into " + tableName + " (name, description, created_at) values (?, ?, ?)";
 
         try (final var statement = getConnection().prepareStatement(sql)) {
             statement.setString(1, order.getName());
@@ -114,7 +115,7 @@ public class OrderRepository {
     }
 
     public void update(final Order order) {
-        final var sql = "update " + TABLE + " set name = ?, description = ?, done_at = ? where code = ?";
+        final var sql = "update " + tableName + " set name = ?, description = ?, done_at = ? where code = ?";
 
         try (final var statement = getConnection().prepareStatement(sql)) {
             statement.setString(1, order.getName());
@@ -138,7 +139,7 @@ public class OrderRepository {
     }
 
     public void delete(final Order order) {
-        final var sql = "delete from " + TABLE + " where code = ?";
+        final var sql = "delete from " + tableName + " where code = ?";
 
         try (final var statement = getConnection().prepareStatement(sql)) {
             statement.setLong(1, order.getCode());
@@ -153,7 +154,7 @@ public class OrderRepository {
 
     public Long countAll() {
         try (final var statement = getConnection().createStatement()) {
-            final var resultSet = statement.executeQuery("select count(*) from orders");
+            final var resultSet = statement.executeQuery("select count(*) from " + tableName + "");
             resultSet.next();
             return (long) resultSet.getInt(1);
         } catch (final SQLException e) {
