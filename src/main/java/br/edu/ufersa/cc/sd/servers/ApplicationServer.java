@@ -93,7 +93,7 @@ public class ApplicationServer extends AbstractServer implements RemoteApplicati
                 final var proxyStub = (RemoteProxy) registry.lookup(Nature.PROXY.getName());
 
                 proxyStub.setApplicationAddress(serverSocketAddress);
-            } catch (RemoteException | NotBoundException e) {
+            } catch (RemoteException | NotBoundException | NullPointerException e) {
                 e.printStackTrace();
             }
         }
